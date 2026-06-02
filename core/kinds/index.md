@@ -1,0 +1,16 @@
+# Core Kinds Index
+
+[abstract](abstract.md)
+[system](system.md)
+[ui](ui.md)
+[room](room.md)
+[item](item.md)
+[container](container.md)
+[supporter](supporter.md)
+[scenery](scenery.md)
+[actor](actor.md)
+[npc](npc.md)
+[pc](pc.md)
+[liquid](liquid.md)
+[light_source](light_source.md)
+[topic](topic.md)
