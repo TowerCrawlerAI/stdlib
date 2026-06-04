@@ -2,7 +2,11 @@
 
 The canonical TowerAI stdlib package: defines what *room*, *npc*, *item*, *encounter*, *quest*, etc. mean in 5e terms.
 
-**Status:** stub. No content authored yet. The parser currently uses a hardcoded fallback equivalent to a minimal subset of what this package will eventually contain. See `docs/design/STDLIB.md` for the rollout plan.
+**Status:** v0.2. This package requires the v0.2 engine binding surface: `damage_entity`, `heal`,
+`apply_condition`/`remove_condition`, `apply_effect`, and `decrement_uses`. These primitives are **not
+present in v0.1** — loading this package against a v0.1 engine will cause combat verbs and
+condition/effect triggers to silently no-op. Use the `core/` package alone for v0.1 exploration-only
+deployments. See `docs/design/STDLIB.md` for the rollout plan.
 
 ## What this package will provide
 

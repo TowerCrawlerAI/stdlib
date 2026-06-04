@@ -8,7 +8,14 @@
 - layer: 2
 - name: dnd5e
 - system: dnd5e
+- status: v0.2
 
+> **v0.2 package.** Requires the v0.2 engine binding surface (`damage_entity`,
+> `heal`, `apply_condition`/`remove_condition`, `apply_effect`, `decrement_uses`).
+> These bindings are **not present in a v0.1 engine** — combat verbs and
+> condition/effect triggers will silently no-op against v0.1. For a runnable
+> exploration stdlib with no inert combat verbs, lower `core/index.md` alone.
+>
 > Layer 2 of the FML standard library: the D&D 5e game-rule-system package.
 > Defines the mechanical kinds and attribute schemas for 5e: ac, hp, ability
 > scores, classes, spell slots, conditions, basic actions. Imports the
