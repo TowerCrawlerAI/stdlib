@@ -36,6 +36,33 @@ A floor document imports only **one** line — the campaign setting:
 
 …which in turn imports `stdlib/core/index.md` (Layer 1). The author never enumerates the dependency chain by hand.
 
+## Lowering the stdlib locally
+
+The core FML definitions are authored as Markdown (`.md`) under `core/`. The
+`fml-parser` CLI lowers them to a single Lua verb-module consumed by the
+engine binary.
+
+**Prerequisites** — install the parser once:
+
+```sh
+# Pinned release (once F4 ships):
+pip install "fml_parser @ git+https://github.com/TowerCrawlerAI/fml-parser@main"
+# …or from a local sibling clone during development:
+pip install -e /path/to/fml-parser
+```
+
+**Build** — run the lowering:
+
+```sh
+make             # writes build/stdlib.lua
+# or without Make:
+python3 -m fml_parser --stdlib-module core/index.md -o build/stdlib.lua
+```
+
+The committed `build/stdlib.lua` is the canonical artifact. CI regenerates and
+uploads it as a build artifact on every push/PR (see
+`.github/workflows/lower.yml`).
+
 ## Current state (PoC bootstrap)
 
 For the PoC, the parser uses a hardcoded fallback equivalent to a minimal Layer 1 + Layer 2 baked into the code. The directories listed as *planned* above are empty stubs; we fill them in incrementally per the rollout plan in `docs/design/STDLIB.md` § 9.

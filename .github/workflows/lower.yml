@@ -1,0 +1,36 @@
+name: Lower stdlib
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lower:
+    name: Lower core stdlib to Lua
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install fml-parser
+        run: |
+          # TODO: pin to a released version once F4 (fml-parser releases) ships.
+          pip install "fml_parser @ git+https://github.com/TowerCrawlerAI/fml-parser@main"
+
+      - name: Lower core/index.md → build/stdlib.lua
+        run: make lower
+
+      - name: Upload stdlib.lua artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stdlib-lua
+          path: build/stdlib.lua
+          if-no-files-found: error
