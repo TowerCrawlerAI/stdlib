@@ -21,7 +21,10 @@ like `npc`) for all acting entities.
 
 Any entity that can take actions: player characters, NPCs, monsters. The
 On Move trigger validates that the requested exit exists and delegates to
-the engine's move primitive, which is available from v0.2 onward.
+`engine.relate`/`engine.unrelate` (the v0.1 graph primitives that subsume the
+old `move_actor` name — see ENGINE_MODEL §11). The TODO comment below reflects
+the pre-LPG name; the real call is `relate`/`unrelate` once the engine wires
+the location relation to the `go` verb.
 
 #### Triggers
 
@@ -35,7 +38,7 @@ if not dest then
     engine.output("You can't go that way.")
     return engine.cancel()
 end
--- TODO: engine.move_actor(ctx.actor.id, dest) -- available v0.2
+-- TODO: engine.relate(ctx.actor.id, "location", dest) -- v0.1; replaces old move_actor name (ENGINE_MODEL §11)
 engine.output(ctx.actor.name .. " moves " .. (ctx.direction or "away") .. ".")
 ```
 

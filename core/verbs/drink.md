@@ -60,6 +60,7 @@ if ctx.noun.filled == "true" and ctx.noun.contents ~= nil then
     engine.output("You drink from the " .. ctx.noun.name .. ". The " .. substance_name .. " is shockingly cold and faintly sweet.")
     -- Apply effect if the substance carries one.
     if substance ~= nil and substance.effect ~= nil then
+        -- v0.2 behavior (no-op in v0.1): engine.apply_effect is a v0.2 binding.
         -- TODO(#35): wire engine.apply_effect when buff system lands.
         engine.output("A calm clarity settles over you. You feel steadied against fear.")
     end
@@ -70,6 +71,7 @@ end
 -- Direct-source path: drink at the source.
 engine.output("You kneel and drink directly from the " .. ctx.noun.name .. ". The water is shockingly cold and faintly sweet.")
 if ctx.noun.effect ~= nil then
+    -- v0.2 behavior (no-op in v0.1): engine.apply_effect is a v0.2 binding.
     -- TODO(#35): wire engine.apply_effect when buff system lands.
     engine.output("A calm clarity settles over you. You feel steadied against fear.")
 end
