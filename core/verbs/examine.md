@@ -50,8 +50,11 @@ if not engine.can_see(ctx.actor, ctx.object) then
     engine.output("You can't see that here.")
     return
 end
-local desc = engine.get_prop(ctx.object, "description")
-engine.output(desc or engine.get_prop(ctx.object, "name") or "You see nothing special.")
+-- Prose lowers to a function (engine.set_prose); render it first, then fall
+-- back to a plain "description" string property, then the bare name.
+local desc = engine.prose(ctx.object)
+    or engine.get_prop(ctx.object, "description")
+engine.output(desc or engine.get_prop(ctx.object, "name") or "You see nothing special about it.")
 -- Surface lit state for light sources.
 if engine.get_prop(ctx.object, "lightable") then
     if engine.get_prop(ctx.object, "lit") then
