@@ -61,8 +61,8 @@ engine.register_verb_alias("doff", "remove")
 engine.register_verb_alias("asking", "ask")
 engine.register_verb_alias("question", "ask")
 engine.register_verb_alias("answering", "answer")
-engine.register_verb_alias("say", "answer")
 engine.register_verb_alias("respond", "answer")
+engine.register_verb_alias("reply", "answer")
 engine.register_verb_alias("telling", "tell")
 engine.register_verb_alias("thinking", "think")
 engine.register_verb_alias("ponder", "think")
@@ -362,87 +362,57 @@ local _h_describe_current_place_on = function(ctx)
 end
 
 local _h_examine_handler_test = function(ctx)
-    if ctx.noun == nil then return false end
-    local level = engine.light_level(ctx.room.entity_id, ctx.actor.entity_id)
-    -- Items not in the actor's own inventory require light level >= 2.
-    if level < 2 and ctx.noun.location ~= tostring(ctx.actor.entity_id) then
-        return false
-    end
-    return engine.can_see(ctx.actor.entity_id, ctx.noun.entity_id)
+    -- Graph ctx (engine-core STAGE_API.md): ctx.object is the noun node id (0 = none).
+    -- (Light gating dropped — the graph engine has no light model yet.)
+    if ctx.object == 0 then return false end
+    return engine.can_see(ctx.actor, ctx.object)
 end
 
 local _h_examine_handler_instead_of = function(ctx)
-    -- Noun didn't resolve. If the literal is a direction word, describe the exit.
-    -- Otherwise fall back to a generic "can't see that" message.
-    local DIRECTIONS = {
-        north=true, south=true, east=true, west=true, up=true, down=true,
-        n=true, s=true, e=true, w=true, u=true, d=true,
-        northeast=true, northwest=true, southeast=true, southwest=true,
-        ne=true, nw=true, se=true, sw=true, ["in"]=true, out=true, inside=true, outside=true,
-    }
-    local lit = ctx.literal
-    if lit ~= nil and ctx.room ~= nil then
-        local lower = string.lower(lit)
-        if DIRECTIONS[lower] then
-            local dest_id = engine.resolve_direction(ctx.room.entity_id, lower)
-            if dest_id and dest_id ~= 0 then
-                local dest = engine.query_entity(dest_id)
-                local name = (dest and dest.name) or "elsewhere"
-                engine.output("That way leads to " .. name .. ".")
-            else
-                engine.output("That way leads nowhere.")
-            end
-            return
-        end
-    end
+    -- Noun didn't resolve. (Legacy direction-word exit description is dropped until
+    -- the graph engine models direction-labeled exits.)
     engine.output("You can't see that here.")
 end
 
 local _h_examine_handler_on = function(ctx)
-    if ctx.noun == nil then
+    -- Graph ctx: ctx.object is the noun node id; props are real values (a boolean
+    -- prop reads back as a Lua boolean, not the string "true").
+    if ctx.object == 0 then
         engine.output("You can't see that here.")
         return
     end
-    local level = engine.light_level(ctx.room.entity_id, ctx.actor.entity_id)
-    if level < 2 and ctx.noun.location ~= tostring(ctx.actor.entity_id) then
-        engine.output("It's too dark to make out any details.")
-        return
-    end
-    if not engine.can_see(ctx.actor.entity_id, ctx.noun.entity_id) then
+    if not engine.can_see(ctx.actor, ctx.object) then
         engine.output("You can't see that here.")
         return
     end
-    local _noun_prose = engine.call_prose(ctx.noun.entity_id, "prose", ctx)
-        or engine.call_prose(ctx.noun.entity_id, "description", ctx)
-        or ctx.noun.name
-    engine.output(_noun_prose or ctx.noun.name)
+    -- Prose lowers to a function (engine.set_prose); render it first, then fall
+    -- back to a plain "description" string property, then the bare name.
+    local desc = engine.prose(ctx.object)
+        or engine.get_prop(ctx.object, "description")
+    engine.output(desc or engine.get_prop(ctx.object, "name") or "You see nothing special about it.")
     -- Surface lit state for light sources.
-    if ctx.noun.lightable == "true" then
-        if ctx.noun.lit == "true" then
+    if engine.get_prop(ctx.object, "lightable") then
+        if engine.get_prop(ctx.object, "lit") then
             engine.output("It is currently lit.")
         else
             engine.output("It is unlit.")
         end
     end
-    -- If open or transparent, list visible contents.
-    if ctx.noun.open == "true" or ctx.noun.transparent == "true" then
-        local contents = engine.entities_in(ctx.noun.entity_id)
-        if #contents > 0 then
-            local names = {}
-            for _, item in ipairs(contents) do
-                if engine.can_see(ctx.actor.entity_id, item.entity_id) then
-                    table.insert(names, item.name or "something")
-                end
-            end
-            if #names > 0 then
-                engine.output("Inside you see: " .. table.concat(names, ", ") .. ".")
+    -- If open or transparent, list visible contents: items whose "in" edge points
+    -- at this object (incoming "in" neighbours).
+    if engine.get_prop(ctx.object, "open") or engine.get_prop(ctx.object, "transparent") then
+        local contents = engine.neighbors(ctx.object, "in", "in")
+        local names = {}
+        for _, id in ipairs(contents) do
+            if engine.can_see(ctx.actor, id) then
+                local nm = engine.get_prop(id, "name")
+                if nm then table.insert(names, nm) end
             end
         end
+        if #names > 0 then
+            engine.output("Inside you see: " .. table.concat(names, ", ") .. ".")
+        end
     end
-end
-
-local _h_examine_handler_after = function(ctx)
-    engine.fire_event("Examined", ctx.noun.entity_id, { actor = ctx.actor.entity_id })
 end
 
 local _h_take_handler_test = function(ctx)
@@ -496,7 +466,7 @@ local _h_drop_handler_after = function(ctx)
 end
 
 local _h_inventory_handler_test = function(ctx)
-    if ctx.noun ~= nil then
+    if ctx.object ~= 0 then
         engine.output("You can only check your own inventory.")
         return false
     end
@@ -504,13 +474,13 @@ local _h_inventory_handler_test = function(ctx)
 end
 
 local _h_inventory_handler_on = function(ctx)
-    local items = engine.entities_in(ctx.actor.entity_id)
+    local items = engine.neighbors(ctx.actor, "carried", "in")
     if #items == 0 then
         engine.output("You are carrying nothing.")
     else
         local names = {}
-        for _, item in ipairs(items) do
-            table.insert(names, item.name or "something")
+        for _, id in ipairs(items) do
+            table.insert(names, engine.get_prop(id, "name") or "something")
         end
         engine.output("You are carrying: " .. table.concat(names, ", ") .. ".")
     end
@@ -535,8 +505,8 @@ local _h_showme_handler_on = function(ctx)
 end
 
 local _h_touch_handler_test = function(ctx)
-    if ctx.noun == nil then return false end
-    return engine.can_touch(ctx.actor.entity_id, ctx.noun.entity_id)
+    if ctx.object == 0 then return false end
+    return engine.can_touch(ctx.actor, ctx.object)
 end
 
 local _h_touch_handler_instead_of = function(ctx)
@@ -544,74 +514,51 @@ local _h_touch_handler_instead_of = function(ctx)
 end
 
 local _h_touch_handler_on = function(ctx)
-    if ctx.noun == nil then
-        engine.output("Touch what?")
-        return
-    end
-    -- 1. Call noun-level on:Touch trigger (sub-entity or standalone entity).
-    -- 2. If not found, call room-level on:Touch trigger (for room-wide reactions
-    --    like a spring rib that wakes a guardian).
-    -- 3. Fall back to default "Nothing happens" prose.
-    local handled = engine.call_trigger(ctx.noun.entity_id, "on:Touch", ctx)
-    if not handled and ctx.room ~= nil then
-        handled = engine.call_trigger(ctx.room.entity_id, "on:Touch", ctx)
-    end
-    if not handled then
-        engine.output("You touch " .. (ctx.noun.name or "it") .. ". Nothing happens.")
-    end
-end
-
-local _h_touch_handler_after = function(ctx)
-end
-
-local _h_touch_handler_report = function(ctx)
+    -- engine.call_trigger has no graph equivalent yet; fall back to default prose.
+    -- (Per-object touch reactions will be revisited when the event/trigger graph model lands.)
+    local name = engine.get_prop(ctx.object, "name") or "it"
+    engine.output("You touch " .. name .. ". Nothing happens.")
 end
 
 local _h_fill_handler_test = function(ctx)
-    if ctx.noun == nil then return false end
-    if ctx.noun_2 == nil then return false end
-    -- Vessel must be a container (or at least portable and open).
-    if ctx.noun.kind ~= "container" and ctx.noun.fillable_vessel ~= "true" then
+    -- Graph ctx: ctx.object = vessel (carried), ctx.object2 = source (reachable).
+    if ctx.object == 0 or ctx.object2 == 0 then return false end
+    if engine.get_prop(ctx.object, "kind") ~= "container"
+       and not engine.get_prop(ctx.object, "fillable_vessel") then
         return false
     end
-    -- Vessel must not already be full.
-    if ctx.noun.filled == "true" then return false end
-    -- Source must be a fillable liquid source.
-    if ctx.noun_2.fillable_source ~= "true" and ctx.noun_2.kind ~= "liquid" then
+    if engine.get_prop(ctx.object, "filled") then return false end
+    if not engine.get_prop(ctx.object2, "fillable_source")
+       and engine.get_prop(ctx.object2, "kind") ~= "liquid" then
         return false
     end
     return true
 end
 
 local _h_fill_handler_instead_of = function(ctx)
-    if ctx.noun == nil then
+    local cname = engine.get_prop(ctx.object, "name") or "it"
+    if ctx.object == 0 then
         engine.output("Fill what?")
-        return
-    end
-    if ctx.noun_2 == nil then
+    elseif ctx.object2 == 0 then
         engine.output("Fill it with what?")
-        return
-    end
-    if ctx.noun.filled == "true" then
-        engine.output("The " .. ctx.noun.name .. " is already full.")
-        return
-    end
-    if ctx.noun.kind ~= "container" and ctx.noun.fillable_vessel ~= "true" then
-        engine.output("You can't fill the " .. ctx.noun.name .. ".")
-        return
-    end
-    if ctx.noun_2.fillable_source ~= "true" and ctx.noun_2.kind ~= "liquid" then
-        engine.output("You can't get any of the " .. ctx.noun_2.name .. " into the " .. ctx.noun.name .. ".")
-        return
+    elseif engine.get_prop(ctx.object, "filled") then
+        engine.output("The " .. cname .. " is already full.")
+    elseif engine.get_prop(ctx.object, "kind") ~= "container"
+           and not engine.get_prop(ctx.object, "fillable_vessel") then
+        engine.output("You can't fill the " .. cname .. ".")
+    else
+        local sname = engine.get_prop(ctx.object2, "name") or "that"
+        engine.output("You can't get any of the " .. sname .. " into the " .. cname .. ".")
     end
 end
 
 local _h_fill_handler_on = function(ctx)
-    -- Determine what substance the source contains (or use source itself).
-    local substance_id = ctx.noun_2.contents or ctx.noun_2.id
-    engine.set_property(ctx.noun.entity_id, "filled", "true")
-    engine.set_property(ctx.noun.entity_id, "contents", substance_id)
-    engine.output("You fill the " .. ctx.noun.name .. " from the " .. ctx.noun_2.name .. ". The water is shockingly cold.")
+    -- Store the source node id as the vessel's contents (drink reads its effect).
+    local cname = engine.get_prop(ctx.object, "name") or "vessel"
+    local sname = engine.get_prop(ctx.object2, "name") or "source"
+    engine.set_prop(ctx.object, "filled", true)
+    engine.set_prop(ctx.object, "contents", ctx.object2)
+    engine.output("You fill the " .. cname .. " from the " .. sname .. ". The water is shockingly cold.")
 end
 
 local _h_fill_handler_after = function(ctx)
@@ -621,51 +568,46 @@ local _h_fill_handler_report = function(ctx)
 end
 
 local _h_drink_handler_test = function(ctx)
-    -- v0.1: per-verb attribute check. When kind chains and materials land
-    -- (tasks #9, #24), this lookup will move into the kind/material
-    -- chain so authors can mark whole kinds (liquid) drinkable
-    -- without touching every verb's Test.
-    if ctx.noun == nil then return false end
-    -- Filled vessel: drinkable if it holds a drinkable substance.
-    if ctx.noun.filled == "true" and ctx.noun.contents ~= nil then
-        return true
-    end
-    return ctx.noun.drinkable == "true" or ctx.noun.kind == "liquid"
+    -- Graph ctx: ctx.object node id; props are real values. A filled vessel holds a
+    -- contents node id; a direct source is drinkable / kind=="liquid".
+    if ctx.object == 0 then return false end
+    if engine.get_prop(ctx.object, "filled") then return true end
+    return engine.get_prop(ctx.object, "drinkable")
+        or engine.get_prop(ctx.object, "kind") == "liquid"
 end
 
 local _h_drink_handler_instead_of = function(ctx)
-    if ctx.noun == nil then
-        engine.output("Drink what?")
-        return
+    local name = engine.get_prop(ctx.object, "name") or "it"
+    if engine.get_prop(ctx.object, "kind") == "container"
+       and not engine.get_prop(ctx.object, "filled") then
+        engine.output("The " .. name .. " is empty.")
+    else
+        engine.output("That's not something you can drink.")
     end
-    if ctx.noun.kind == "container" and ctx.noun.filled ~= "true" then
-        engine.output("The " .. ctx.noun.name .. " is empty.")
-        return
-    end
-    engine.output("That's not something you can drink.")
 end
 
 local _h_drink_handler_on = function(ctx)
-    if ctx.noun == nil then return end
-    -- Vessel path: consume contents and empty the vessel.
-    if ctx.noun.filled == "true" and ctx.noun.contents ~= nil then
-        local substance_id = ctx.noun.contents
-        local substance = engine.query_entity_by_id(substance_id)
-        local substance_name = (substance and substance.name) or substance_id
-        engine.output("You drink from the " .. ctx.noun.name .. ". The " .. substance_name .. " is shockingly cold and faintly sweet.")
-        -- Apply effect if the substance carries one.
-        if substance ~= nil and substance.effect ~= nil then
-            -- TODO(#35): wire engine.apply_effect when buff system lands.
+    if ctx.object == 0 then return end
+    local name = engine.get_prop(ctx.object, "name") or "it"
+    -- Vessel path: consume contents (a node id stored by `fill`) and empty it.
+    if engine.get_prop(ctx.object, "filled") then
+        local substance = engine.get_prop(ctx.object, "contents")  -- node id, or nil
+        local sname = (substance and engine.get_prop(substance, "name")) or "liquid"
+        engine.output("You drink from the " .. name .. ". The " .. sname
+            .. " is shockingly cold and faintly sweet.")
+        if substance and engine.get_prop(substance, "effect") then
+            -- v0.2 condition (protection_from_frightened) auto-succeeds as flavor;
+            -- engine.apply_effect lands with the condition system (#35).
             engine.output("A calm clarity settles over you. You feel steadied against fear.")
         end
-        engine.set_property(ctx.noun.entity_id, "filled", "false")
-        engine.set_property(ctx.noun.entity_id, "contents", nil)
+        engine.set_prop(ctx.object, "filled", false)
+        engine.set_prop(ctx.object, "contents", 0)
         return
     end
-    -- Direct-source path: drink at the source.
-    engine.output("You kneel and drink directly from the " .. ctx.noun.name .. ". The water is shockingly cold and faintly sweet.")
-    if ctx.noun.effect ~= nil then
-        -- TODO(#35): wire engine.apply_effect when buff system lands.
+    -- Direct-source path: kneel and drink at the source.
+    engine.output("You kneel and drink directly from the " .. name
+        .. ". The water is shockingly cold and faintly sweet.")
+    if engine.get_prop(ctx.object, "effect") then
         engine.output("A calm clarity settles over you. You feel steadied against fear.")
     end
 end
@@ -1230,84 +1172,55 @@ return {
         prompt_no_noun = "Examine what?",
         stages = {
             test = function(ctx)
-                if ctx.noun == nil then return false end
-                local level = engine.light_level(ctx.room.entity_id, ctx.actor.entity_id)
-                -- Items not in the actor's own inventory require light level >= 2.
-                if level < 2 and ctx.noun.location ~= tostring(ctx.actor.entity_id) then
-                    return false
-                end
-                return engine.can_see(ctx.actor.entity_id, ctx.noun.entity_id)
+                -- Graph ctx (engine-core STAGE_API.md): ctx.object is the noun node id (0 = none).
+                -- (Light gating dropped — the graph engine has no light model yet.)
+                if ctx.object == 0 then return false end
+                return engine.can_see(ctx.actor, ctx.object)
             end,
             instead_of = function(ctx)
-                -- Noun didn't resolve. If the literal is a direction word, describe the exit.
-                -- Otherwise fall back to a generic "can't see that" message.
-                local DIRECTIONS = {
-                    north=true, south=true, east=true, west=true, up=true, down=true,
-                    n=true, s=true, e=true, w=true, u=true, d=true,
-                    northeast=true, northwest=true, southeast=true, southwest=true,
-                    ne=true, nw=true, se=true, sw=true, ["in"]=true, out=true, inside=true, outside=true,
-                }
-                local lit = ctx.literal
-                if lit ~= nil and ctx.room ~= nil then
-                    local lower = string.lower(lit)
-                    if DIRECTIONS[lower] then
-                        local dest_id = engine.resolve_direction(ctx.room.entity_id, lower)
-                        if dest_id and dest_id ~= 0 then
-                            local dest = engine.query_entity(dest_id)
-                            local name = (dest and dest.name) or "elsewhere"
-                            engine.output("That way leads to " .. name .. ".")
-                        else
-                            engine.output("That way leads nowhere.")
-                        end
-                        return
-                    end
-                end
+                -- Noun didn't resolve. (Legacy direction-word exit description is dropped until
+                -- the graph engine models direction-labeled exits.)
                 engine.output("You can't see that here.")
             end,
             on = function(ctx)
-                if ctx.noun == nil then
+                -- Graph ctx: ctx.object is the noun node id; props are real values (a boolean
+                -- prop reads back as a Lua boolean, not the string "true").
+                if ctx.object == 0 then
                     engine.output("You can't see that here.")
                     return
                 end
-                local level = engine.light_level(ctx.room.entity_id, ctx.actor.entity_id)
-                if level < 2 and ctx.noun.location ~= tostring(ctx.actor.entity_id) then
-                    engine.output("It's too dark to make out any details.")
-                    return
-                end
-                if not engine.can_see(ctx.actor.entity_id, ctx.noun.entity_id) then
+                if not engine.can_see(ctx.actor, ctx.object) then
                     engine.output("You can't see that here.")
                     return
                 end
-                local _noun_prose = engine.call_prose(ctx.noun.entity_id, "prose", ctx)
-                    or engine.call_prose(ctx.noun.entity_id, "description", ctx)
-                    or ctx.noun.name
-                engine.output(_noun_prose or ctx.noun.name)
+                -- Prose lowers to a function (engine.set_prose); render it first, then fall
+                -- back to a plain "description" string property, then the bare name.
+                local desc = engine.prose(ctx.object)
+                    or engine.get_prop(ctx.object, "description")
+                engine.output(desc or engine.get_prop(ctx.object, "name") or "You see nothing special about it.")
                 -- Surface lit state for light sources.
-                if ctx.noun.lightable == "true" then
-                    if ctx.noun.lit == "true" then
+                if engine.get_prop(ctx.object, "lightable") then
+                    if engine.get_prop(ctx.object, "lit") then
                         engine.output("It is currently lit.")
                     else
                         engine.output("It is unlit.")
                     end
                 end
-                -- If open or transparent, list visible contents.
-                if ctx.noun.open == "true" or ctx.noun.transparent == "true" then
-                    local contents = engine.entities_in(ctx.noun.entity_id)
-                    if #contents > 0 then
-                        local names = {}
-                        for _, item in ipairs(contents) do
-                            if engine.can_see(ctx.actor.entity_id, item.entity_id) then
-                                table.insert(names, item.name or "something")
-                            end
-                        end
-                        if #names > 0 then
-                            engine.output("Inside you see: " .. table.concat(names, ", ") .. ".")
+                -- If open or transparent, list visible contents: items whose "in" edge points
+                -- at this object (incoming "in" neighbours).
+                if engine.get_prop(ctx.object, "open") or engine.get_prop(ctx.object, "transparent") then
+                    local contents = engine.neighbors(ctx.object, "in", "in")
+                    local names = {}
+                    for _, id in ipairs(contents) do
+                        if engine.can_see(ctx.actor, id) then
+                            local nm = engine.get_prop(id, "name")
+                            if nm then table.insert(names, nm) end
                         end
                     end
+                    if #names > 0 then
+                        engine.output("Inside you see: " .. table.concat(names, ", ") .. ".")
+                    end
                 end
-            end,
-            after = function(ctx)
-                engine.fire_event("Examined", ctx.noun.entity_id, { actor = ctx.actor.entity_id })
             end,
         },
     },
@@ -1421,70 +1334,70 @@ return {
         prompt_no_noun = "Open what?",
         stages = {
             test = function(ctx)
-                -- v0.1: per-verb attribute check. When kind chains and materials land
-                -- (tasks #9, #24), this lookup will move into the kind/material
-                -- chain so authors can mark whole kinds (container, door) openable
-                -- without touching every verb's Test.
-                if ctx.noun == nil then return false end
-                local openable = ctx.noun.openable == "true" or ctx.noun.kind == "container" or ctx.noun.kind == "door"
+                -- Graph ctx: ctx.object is the noun node id; props are real values (booleans,
+                -- not "true"). Doors use a "state" string; containers a boolean "open".
+                if ctx.object == 0 then return false end
+                local kind = engine.get_prop(ctx.object, "kind")
+                local openable = engine.get_prop(ctx.object, "openable")
+                    or kind == "container" or kind == "door"
                 if not openable then return false end
-                -- Doors use state-based logic; containers use the legacy open/locked properties.
-                if ctx.noun.kind == "door" then
-                    local state = ctx.noun.state or "closed"
-                    if state == "locked" then return false end
-                    if state == "open" then return false end
+                if kind == "door" then
+                    local state = engine.get_prop(ctx.object, "state") or "closed"
+                    if state == "locked" or state == "open" then return false end
                 else
-                    if ctx.noun.locked == "true" then return false end
-                    if ctx.noun.open == "true" then return false end
+                    if engine.get_prop(ctx.object, "locked") then return false end
+                    if engine.get_prop(ctx.object, "open") then return false end
                 end
                 return true
             end,
             instead_of = function(ctx)
-                local openable = ctx.noun.openable == "true" or ctx.noun.kind == "container" or ctx.noun.kind == "door"
-                if ctx.noun.kind == "door" then
-                    local state = ctx.noun.state or "closed"
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                local kind = engine.get_prop(ctx.object, "kind")
+                local openable = engine.get_prop(ctx.object, "openable")
+                    or kind == "container" or kind == "door"
+                if kind == "door" then
+                    local state = engine.get_prop(ctx.object, "state") or "closed"
                     if state == "locked" then
-                        engine.output(ctx.noun.name .. " is locked.")
+                        engine.output(name .. " is locked.")
                     elseif state == "open" then
-                        engine.output(ctx.noun.name .. " is already open.")
+                        engine.output(name .. " is already open.")
                     elseif not openable then
-                        engine.output(ctx.noun.name .. " isn't something you can open.")
+                        engine.output(name .. " isn't something you can open.")
                     else
-                        engine.output(ctx.noun.name .. " is already open.")
+                        engine.output(name .. " is already open.")
                     end
-                elseif ctx.noun.locked == "true" then
-                    engine.output(ctx.noun.name .. " is locked.")
+                elseif engine.get_prop(ctx.object, "locked") then
+                    engine.output(name .. " is locked.")
                 elseif not openable then
-                    engine.output(ctx.noun.name .. " isn't something you can open.")
+                    engine.output(name .. " isn't something you can open.")
                 else
-                    engine.output(ctx.noun.name .. " is already open.")
+                    engine.output(name .. " is already open.")
                 end
             end,
             on = function(ctx)
-                -- Doors use state property; containers use the legacy open property.
-                if ctx.noun.kind == "door" then
-                    engine.set_property(ctx.noun.entity_id, "state", "open")
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                if engine.get_prop(ctx.object, "kind") == "door" then
+                    engine.set_prop(ctx.object, "state", "open")
                 else
-                    engine.set_property(ctx.noun.entity_id, "open", "true")
+                    engine.set_prop(ctx.object, "open", true)
                 end
-                engine.output("You open " .. ctx.noun.name .. ".")
+                engine.output("You open " .. name .. ".")
             end,
             after = function(ctx)
-                -- Reveal contents now that the container is open.
-                -- Exception: enterable containers (e.g. a sarcophagus you can climb inside)
-                -- do not list their contents to outside observers — the player must enter
-                -- to discover what's there. This is the correct semantic for any container
-                -- large enough to occupy (wagon, wardrobe, large chest, etc.).
-                if ctx.noun.enterable == "true" then
-                    return
-                end
-                local contents = engine.entities_in(ctx.noun.entity_id)
+                -- Reveal contents now that the container is open. (The engine's SEE/TOUCH scope
+                -- also descends into open|transparent containers, so the contents become
+                -- examinable/takeable automatically.)
+                -- Exception: enterable containers (e.g. a sarcophagus you can climb inside) do
+                -- not list their contents to outside observers — the player must enter.
+                if engine.get_prop(ctx.object, "enterable") then return end
+                local contents = engine.neighbors(ctx.object, "in", "in")
                 if #contents > 0 then
                     local names = {}
-                    for _, item in ipairs(contents) do
-                        table.insert(names, item.name or "something")
+                    for _, id in ipairs(contents) do
+                        table.insert(names, engine.get_prop(id, "name") or "something")
                     end
-                    engine.output(ctx.noun.name .. " contains: " .. table.concat(names, ", ") .. ".")
+                    local name = engine.get_prop(ctx.object, "name") or "It"
+                    engine.output(name .. " contains: " .. table.concat(names, ", ") .. ".")
                 end
             end,
         },
@@ -1502,38 +1415,39 @@ return {
         prompt_no_noun = "Close what?",
         stages = {
             test = function(ctx)
-                -- v0.1: per-verb attribute check. When kind chains and materials land
-                -- (tasks #9, #24), this lookup will move into the kind/material
-                -- chain so authors can mark whole kinds (container, door) openable
-                -- without touching every verb's Test.
-                if ctx.noun == nil then return false end
-                local openable = ctx.noun.openable == "true" or ctx.noun.kind == "container" or ctx.noun.kind == "door"
+                -- Graph ctx: ctx.object node id; real-value props. Doors use a "state" string;
+                -- containers a boolean "open".
+                if ctx.object == 0 then return false end
+                local kind = engine.get_prop(ctx.object, "kind")
+                local openable = engine.get_prop(ctx.object, "openable")
+                    or kind == "container" or kind == "door"
                 if not openable then return false end
-                -- Doors use state-based logic; containers use the legacy open property.
-                if ctx.noun.kind == "door" then
-                    local state = ctx.noun.state or "closed"
-                    if state ~= "open" then return false end
+                if kind == "door" then
+                    if (engine.get_prop(ctx.object, "state") or "closed") ~= "open" then return false end
                 else
-                    if ctx.noun.open ~= "true" then return false end
+                    if not engine.get_prop(ctx.object, "open") then return false end
                 end
                 return true
             end,
             instead_of = function(ctx)
-                local openable = ctx.noun.openable == "true" or ctx.noun.kind == "container" or ctx.noun.kind == "door"
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                local kind = engine.get_prop(ctx.object, "kind")
+                local openable = engine.get_prop(ctx.object, "openable")
+                    or kind == "container" or kind == "door"
                 if not openable then
-                    engine.output(ctx.noun.name .. " isn't something you can close.")
+                    engine.output(name .. " isn't something you can close.")
                 else
-                    engine.output(ctx.noun.name .. " is already closed.")
+                    engine.output(name .. " is already closed.")
                 end
             end,
             on = function(ctx)
-                -- Doors use state property; containers use the legacy open property.
-                if ctx.noun.kind == "door" then
-                    engine.set_property(ctx.noun.entity_id, "state", "closed")
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                if engine.get_prop(ctx.object, "kind") == "door" then
+                    engine.set_prop(ctx.object, "state", "closed")
                 else
-                    engine.set_property(ctx.noun.entity_id, "open", "false")
+                    engine.set_prop(ctx.object, "open", false)
                 end
-                engine.output("You close " .. ctx.noun.name .. ".")
+                engine.output("You close " .. name .. ".")
             end,
         },
     },
@@ -1610,20 +1524,20 @@ return {
         event = "Inventory",
         stages = {
             test = function(ctx)
-                if ctx.noun ~= nil then
+                if ctx.object ~= 0 then
                     engine.output("You can only check your own inventory.")
                     return false
                 end
                 return true
             end,
             on = function(ctx)
-                local items = engine.entities_in(ctx.actor.entity_id)
+                local items = engine.neighbors(ctx.actor, "carried", "in")
                 if #items == 0 then
                     engine.output("You are carrying nothing.")
                 else
                     local names = {}
-                    for _, item in ipairs(items) do
-                        table.insert(names, item.name or "something")
+                    for _, id in ipairs(items) do
+                        table.insert(names, engine.get_prop(id, "name") or "something")
                     end
                     engine.output("You are carrying: " .. table.concat(names, ", ") .. ".")
                 end
@@ -1732,32 +1646,17 @@ return {
         event = "Touch",
         stages = {
             test = function(ctx)
-                if ctx.noun == nil then return false end
-                return engine.can_touch(ctx.actor.entity_id, ctx.noun.entity_id)
+                if ctx.object == 0 then return false end
+                return engine.can_touch(ctx.actor, ctx.object)
             end,
             instead_of = function(ctx)
                 engine.output("You can't touch that.")
             end,
             on = function(ctx)
-                if ctx.noun == nil then
-                    engine.output("Touch what?")
-                    return
-                end
-                -- 1. Call noun-level on:Touch trigger (sub-entity or standalone entity).
-                -- 2. If not found, call room-level on:Touch trigger (for room-wide reactions
-                --    like a spring rib that wakes a guardian).
-                -- 3. Fall back to default "Nothing happens" prose.
-                local handled = engine.call_trigger(ctx.noun.entity_id, "on:Touch", ctx)
-                if not handled and ctx.room ~= nil then
-                    handled = engine.call_trigger(ctx.room.entity_id, "on:Touch", ctx)
-                end
-                if not handled then
-                    engine.output("You touch " .. (ctx.noun.name or "it") .. ". Nothing happens.")
-                end
-            end,
-            after = function(ctx)
-            end,
-            report = function(ctx)
+                -- engine.call_trigger has no graph equivalent yet; fall back to default prose.
+                -- (Per-object touch reactions will be revisited when the event/trigger graph model lands.)
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                engine.output("You touch " .. name .. ". Nothing happens.")
             end,
         },
     },
@@ -1790,48 +1689,42 @@ return {
         event = "Fill",
         stages = {
             test = function(ctx)
-                if ctx.noun == nil then return false end
-                if ctx.noun_2 == nil then return false end
-                -- Vessel must be a container (or at least portable and open).
-                if ctx.noun.kind ~= "container" and ctx.noun.fillable_vessel ~= "true" then
+                -- Graph ctx: ctx.object = vessel (carried), ctx.object2 = source (reachable).
+                if ctx.object == 0 or ctx.object2 == 0 then return false end
+                if engine.get_prop(ctx.object, "kind") ~= "container"
+                   and not engine.get_prop(ctx.object, "fillable_vessel") then
                     return false
                 end
-                -- Vessel must not already be full.
-                if ctx.noun.filled == "true" then return false end
-                -- Source must be a fillable liquid source.
-                if ctx.noun_2.fillable_source ~= "true" and ctx.noun_2.kind ~= "liquid" then
+                if engine.get_prop(ctx.object, "filled") then return false end
+                if not engine.get_prop(ctx.object2, "fillable_source")
+                   and engine.get_prop(ctx.object2, "kind") ~= "liquid" then
                     return false
                 end
                 return true
             end,
             instead_of = function(ctx)
-                if ctx.noun == nil then
+                local cname = engine.get_prop(ctx.object, "name") or "it"
+                if ctx.object == 0 then
                     engine.output("Fill what?")
-                    return
-                end
-                if ctx.noun_2 == nil then
+                elseif ctx.object2 == 0 then
                     engine.output("Fill it with what?")
-                    return
-                end
-                if ctx.noun.filled == "true" then
-                    engine.output("The " .. ctx.noun.name .. " is already full.")
-                    return
-                end
-                if ctx.noun.kind ~= "container" and ctx.noun.fillable_vessel ~= "true" then
-                    engine.output("You can't fill the " .. ctx.noun.name .. ".")
-                    return
-                end
-                if ctx.noun_2.fillable_source ~= "true" and ctx.noun_2.kind ~= "liquid" then
-                    engine.output("You can't get any of the " .. ctx.noun_2.name .. " into the " .. ctx.noun.name .. ".")
-                    return
+                elseif engine.get_prop(ctx.object, "filled") then
+                    engine.output("The " .. cname .. " is already full.")
+                elseif engine.get_prop(ctx.object, "kind") ~= "container"
+                       and not engine.get_prop(ctx.object, "fillable_vessel") then
+                    engine.output("You can't fill the " .. cname .. ".")
+                else
+                    local sname = engine.get_prop(ctx.object2, "name") or "that"
+                    engine.output("You can't get any of the " .. sname .. " into the " .. cname .. ".")
                 end
             end,
             on = function(ctx)
-                -- Determine what substance the source contains (or use source itself).
-                local substance_id = ctx.noun_2.contents or ctx.noun_2.id
-                engine.set_property(ctx.noun.entity_id, "filled", "true")
-                engine.set_property(ctx.noun.entity_id, "contents", substance_id)
-                engine.output("You fill the " .. ctx.noun.name .. " from the " .. ctx.noun_2.name .. ". The water is shockingly cold.")
+                -- Store the source node id as the vessel's contents (drink reads its effect).
+                local cname = engine.get_prop(ctx.object, "name") or "vessel"
+                local sname = engine.get_prop(ctx.object2, "name") or "source"
+                engine.set_prop(ctx.object, "filled", true)
+                engine.set_prop(ctx.object, "contents", ctx.object2)
+                engine.output("You fill the " .. cname .. " from the " .. sname .. ". The water is shockingly cold.")
             end,
             after = function(ctx)
             end,
@@ -1852,49 +1745,44 @@ return {
         event = "Drink",
         stages = {
             test = function(ctx)
-                -- v0.1: per-verb attribute check. When kind chains and materials land
-                -- (tasks #9, #24), this lookup will move into the kind/material
-                -- chain so authors can mark whole kinds (liquid) drinkable
-                -- without touching every verb's Test.
-                if ctx.noun == nil then return false end
-                -- Filled vessel: drinkable if it holds a drinkable substance.
-                if ctx.noun.filled == "true" and ctx.noun.contents ~= nil then
-                    return true
-                end
-                return ctx.noun.drinkable == "true" or ctx.noun.kind == "liquid"
+                -- Graph ctx: ctx.object node id; props are real values. A filled vessel holds a
+                -- contents node id; a direct source is drinkable / kind=="liquid".
+                if ctx.object == 0 then return false end
+                if engine.get_prop(ctx.object, "filled") then return true end
+                return engine.get_prop(ctx.object, "drinkable")
+                    or engine.get_prop(ctx.object, "kind") == "liquid"
             end,
             instead_of = function(ctx)
-                if ctx.noun == nil then
-                    engine.output("Drink what?")
-                    return
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                if engine.get_prop(ctx.object, "kind") == "container"
+                   and not engine.get_prop(ctx.object, "filled") then
+                    engine.output("The " .. name .. " is empty.")
+                else
+                    engine.output("That's not something you can drink.")
                 end
-                if ctx.noun.kind == "container" and ctx.noun.filled ~= "true" then
-                    engine.output("The " .. ctx.noun.name .. " is empty.")
-                    return
-                end
-                engine.output("That's not something you can drink.")
             end,
             on = function(ctx)
-                if ctx.noun == nil then return end
-                -- Vessel path: consume contents and empty the vessel.
-                if ctx.noun.filled == "true" and ctx.noun.contents ~= nil then
-                    local substance_id = ctx.noun.contents
-                    local substance = engine.query_entity_by_id(substance_id)
-                    local substance_name = (substance and substance.name) or substance_id
-                    engine.output("You drink from the " .. ctx.noun.name .. ". The " .. substance_name .. " is shockingly cold and faintly sweet.")
-                    -- Apply effect if the substance carries one.
-                    if substance ~= nil and substance.effect ~= nil then
-                        -- TODO(#35): wire engine.apply_effect when buff system lands.
+                if ctx.object == 0 then return end
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                -- Vessel path: consume contents (a node id stored by `fill`) and empty it.
+                if engine.get_prop(ctx.object, "filled") then
+                    local substance = engine.get_prop(ctx.object, "contents")  -- node id, or nil
+                    local sname = (substance and engine.get_prop(substance, "name")) or "liquid"
+                    engine.output("You drink from the " .. name .. ". The " .. sname
+                        .. " is shockingly cold and faintly sweet.")
+                    if substance and engine.get_prop(substance, "effect") then
+                        -- v0.2 condition (protection_from_frightened) auto-succeeds as flavor;
+                        -- engine.apply_effect lands with the condition system (#35).
                         engine.output("A calm clarity settles over you. You feel steadied against fear.")
                     end
-                    engine.set_property(ctx.noun.entity_id, "filled", "false")
-                    engine.set_property(ctx.noun.entity_id, "contents", nil)
+                    engine.set_prop(ctx.object, "filled", false)
+                    engine.set_prop(ctx.object, "contents", 0)
                     return
                 end
-                -- Direct-source path: drink at the source.
-                engine.output("You kneel and drink directly from the " .. ctx.noun.name .. ". The water is shockingly cold and faintly sweet.")
-                if ctx.noun.effect ~= nil then
-                    -- TODO(#35): wire engine.apply_effect when buff system lands.
+                -- Direct-source path: kneel and drink at the source.
+                engine.output("You kneel and drink directly from the " .. name
+                    .. ". The water is shockingly cold and faintly sweet.")
+                if engine.get_prop(ctx.object, "effect") then
                     engine.output("A calm clarity settles over you. You feel steadied against fear.")
                 end
             end,
@@ -1918,20 +1806,19 @@ return {
             test = function(ctx)
                 -- v0.1: per-verb attribute check. When kind chains land (task #9),
                 -- containers and surfaces will carry searchable implicitly.
-                if ctx.noun == nil then return false end
-                return ctx.noun.searchable == "true"
-                    or ctx.noun.kind == "container"
-                    or ctx.noun.kind == "supporter"
+                if ctx.object == 0 then return false end
+                return engine.get_prop(ctx.object, "searchable")
+                    or engine.get_prop(ctx.object, "kind") == "container"
+                    or engine.get_prop(ctx.object, "kind") == "supporter"
             end,
             instead_of = function(ctx)
-                engine.output("There's nothing to search on " .. ctx.noun.name .. ".")
+                if ctx.object == 0 then engine.output("Search what?") return end
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                engine.output("There's nothing to search on " .. name .. ".")
             end,
             on = function(ctx)
-                engine.output("You search " .. ctx.noun.name .. ".")
-            end,
-            after = function(ctx)
-            end,
-            report = function(ctx)
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                engine.output("You search " .. name .. ".")
             end,
         },
     },
@@ -2103,91 +1990,72 @@ return {
         name = "answer",
         kind = "verb",
         name = "answer",
-        aliases = { "answering", "say", "respond" },
-        noun = "optional",
-        noun_scope = "global",
+        aliases = { "answering", "respond", "reply" },
+        noun = "none",
         event = "Answer",
         prompt_no_noun = "Answer what?",
         stages = {
             test = function(ctx)
+                -- Always dispatchable: the answer text comes from ctx.raw, not a resolved noun.
                 return true
             end,
             on = function(ctx)
-                -- Determine the literal answer text (raw input stripped of verb prefix).
+                -- The answer phrase is everything after the verb word in the raw command.
                 local raw = ctx.raw or ""
-                -- Strip the leading verb word from raw to get the answer phrase.
-                local answer_text = raw:match("^%s*%S+%s+(.*)")
-                if answer_text == nil or answer_text == "" then
-                    -- Single-word or bare command: use noun name if available.
-                    answer_text = (ctx.noun and ctx.noun.name) or ""
-                end
-                -- Normalise: lowercase and trim.
-                answer_text = (answer_text:lower():match("^%s*(.-)%s*$")) or ""
-
-                -- Find the last NPC asked (stored on the actor by the ask On stage).
-                local last_npc_id_str = nil
-                if ctx.actor and ctx.actor.entity_id then
-                    local actor_data = engine.query_entity(ctx.actor.entity_id)
-                    if actor_data then
-                        last_npc_id_str = actor_data.last_asked_npc
-                    end
-                end
-
-                if last_npc_id_str == nil or last_npc_id_str == "" then
-                    -- No conversation context. If a noun was provided, emit the old default response.
-                    if ctx.noun then
-                        local noun_name = ctx.noun.name or "them"
-                        engine.output("You answer " .. noun_name .. ".")
-                    else
-                        engine.output("Answer what?")
-                    end
-                    return
-                end
-
-                local npc_id_num = tonumber(last_npc_id_str)
-                if npc_id_num == nil then
+                local phrase = raw:match("^%s*%S+%s+(.*)")
+                phrase = phrase and (phrase:lower():match("^%s*(.-)%s*$")) or ""
+                if phrase == "" then
                     engine.output("Answer what?")
                     return
                 end
 
-                local npc = engine.query_entity(npc_id_num)
-                if npc == nil then
-                    engine.output("Answer what?")
+                -- Find someone in this room awaiting an answer.
+                local target = 0
+                local expected = nil
+                if ctx.room ~= 0 then
+                    for _, n in ipairs(engine.neighbors(ctx.room, "in", "in")) do
+                        if n ~= ctx.actor then
+                            local aw = engine.get_prop(n, "awaiting_answer")
+                            if aw ~= nil and aw ~= "" then
+                                target = n
+                                expected = aw
+                                break
+                            end
+                        end
+                    end
+                end
+
+                if target == 0 then
+                    engine.output("No one here is waiting for an answer.")
                     return
                 end
 
-                -- Check if this NPC has an awaiting_answer property.
-                local expected = npc.awaiting_answer
-                if expected == nil or expected == "" then
-                    engine.output("You answer, though no one seems to be waiting for it.")
-                    return
-                end
-
-                -- Normalise expected answers: comma-separated list.
+                -- Match the phrase against the NPC's comma-separated accepted answers
+                -- (case-insensitive; the phrase need only contain an accepted token).
                 local matched = false
-                for token in (expected .. ","):gmatch("([^,]*),") do
-                    local trimmed = (token:lower():match("^%s*(.-)%s*$")) or ""
-                    if trimmed ~= "" and (trimmed == answer_text or answer_text:find(trimmed, 1, true) ~= nil) then
+                for token in (expected:lower() .. ","):gmatch("([^,]*),") do
+                    local t = token:match("^%s*(.-)%s*$")
+                    if t ~= "" and phrase:find(t, 1, true) ~= nil then
                         matched = true
                         break
                     end
                 end
 
+                local name = engine.get_prop(target, "name") or "It"
                 if matched then
-                    -- Correct answer — clear awaiting_answer and call the NPC's on:Answer trigger.
-                    engine.set_property(npc_id_num, "awaiting_answer", nil)
-                    -- Build a ctx-like table for the trigger call.
-                    local trigger_ctx = { actor = ctx.actor, noun = npc, raw = ctx.raw }
-                    local handled = engine.call_trigger(npc_id_num, "on:Answer", trigger_ctx)
+                    engine.set_prop(target, "awaiting_answer", "")  -- consumed
+                    -- Fire the NPC's authored reaction; fall back to a generic line.
+                    local handled = engine.call_trigger(target, "on:Answer", ctx)
                     if not handled then
-                        -- Default victory output if NPC has no specific trigger.
-                        local npc_name = npc.name or "them"
-                        engine.output("That is the answer. " .. npc_name .. " acknowledges it.")
+                        engine.output(name .. " accepts your answer.")
                     end
                 else
-                    local npc_name = npc.name or "The creature"
-                    engine.output(npc_name .. " regards you with hollow contempt — that is not the answer.")
+                    engine.output(name .. " gives no sign that your answer is right.")
                 end
+            end,
+            after = function(ctx)
+            end,
+            report = function(ctx)
             end,
         },
     },
@@ -2326,39 +2194,37 @@ return {
         prompt_no_noun = "Consult what?",
         stages = {
             test = function(ctx)
-                return ctx.noun ~= nil
+                return ctx.object ~= 0
             end,
             on = function(ctx)
                 -- Determine response: if topic provided, try reference work's sub-entity match.
-                local ref = ctx.noun
-                local topic = ctx.noun_2
+                local ref = ctx.object
+                local topic = ctx.object2  -- 0 if no topic given
                 local response = nil
 
-                if topic and ref and ref.entity_id then
-                    -- Check if the reference work has a child entity matching this topic.
-                    local children = engine.entities_in(ref.entity_id)
-                    if children then
-                        local topic_name = topic.name or topic.id or ""
-                        for _, child in ipairs(children) do
-                            if child.kind == "topic" then
-                                local child_name = child.name or child.id or ""
-                                if child_name == topic_name then
-                                    response = child.response
-                                    break
-                                end
+                if topic ~= 0 then
+                    -- Check if the reference work has a child entity (kind=="topic") matching this topic.
+                    local children = engine.neighbors(ref, "in", "in")
+                    local topic_name = engine.get_prop(topic, "name") or ""
+                    for _, child in ipairs(children) do
+                        if engine.get_prop(child, "kind") == "topic" then
+                            local child_name = engine.get_prop(child, "name") or ""
+                            if child_name == topic_name then
+                                response = engine.get_prop(child, "response")
+                                break
                             end
                         end
                     end
-                    -- Fall back to the global topic response.
+                    -- Fall back to the global topic response property.
                     if response == nil then
-                        response = topic.response
+                        response = engine.get_prop(topic, "response")
                     end
                 end
 
                 if response == nil then
-                    local ref_name = (ref and ref.name) or "it"
-                    if topic then
-                        local topic_name = (topic and topic.name) or "that"
+                    local ref_name = engine.get_prop(ref, "name") or "it"
+                    if topic ~= 0 then
+                        local topic_name = engine.get_prop(topic, "name") or "that"
                         response = "You consult " .. ref_name .. " about " .. topic_name .. " but find nothing useful."
                     else
                         response = "You consult " .. ref_name .. "."
@@ -2366,11 +2232,6 @@ return {
                 end
 
                 engine.output(response)
-            end,
-            after = function(ctx)
-                if ctx.noun and ctx.noun.entity_id then
-                    engine.fire_event("Consulted", ctx.noun.entity_id, {})
-                end
             end,
         },
     },
@@ -2385,36 +2246,30 @@ return {
         prompt_no_noun = "Read what?",
         stages = {
             test = function(ctx)
-                if ctx.noun == nil then return false end
-                return ctx.noun.readable == "true"
-                    or ctx.noun.kind == "document"
-                    or ctx.noun.kind == "book"
-                    or ctx.noun.kind == "sign"
-                    or ctx.noun.kind == "scroll"
+                if ctx.object == 0 then return false end
+                return engine.get_prop(ctx.object, "readable")
+                    or engine.get_prop(ctx.object, "kind") == "document"
+                    or engine.get_prop(ctx.object, "kind") == "book"
+                    or engine.get_prop(ctx.object, "kind") == "sign"
+                    or engine.get_prop(ctx.object, "kind") == "scroll"
             end,
             instead_of = function(ctx)
-                if ctx.noun == nil then
+                if ctx.object == 0 then
                     engine.output("Read what?")
                     return
                 end
                 engine.output("You can't read that.")
             end,
             on = function(ctx)
-                if ctx.noun == nil then return end
-                local text = ctx.noun.text
-                    or ctx.noun.inscription
-                    or ctx.noun.contents
-                    or engine.call_prose(ctx.noun.entity_id, "prose", ctx)
-                    or engine.call_prose(ctx.noun.entity_id, "description", ctx)
+                local text = engine.get_prop(ctx.object, "text")
+                    or engine.get_prop(ctx.object, "inscription")
+                    or engine.get_prop(ctx.object, "contents")
+                    or engine.get_prop(ctx.object, "description")
+                local name = engine.get_prop(ctx.object, "name") or "it"
                 if text then
                     engine.output(text)
                 else
-                    engine.output("There is nothing written on " .. (ctx.noun.name or "it") .. ".")
-                end
-            end,
-            after = function(ctx)
-                if ctx.noun and ctx.noun.entity_id then
-                    engine.fire_event("Read", ctx.noun.entity_id, { actor = ctx.actor.entity_id })
+                    engine.output("There is nothing written on " .. name .. ".")
                 end
             end,
         },
@@ -2428,7 +2283,7 @@ return {
         event = "Listen",
         stages = {
             test = function(ctx)
-                if ctx.noun ~= nil then
+                if ctx.object ~= 0 then
                     engine.output("Listen to what? (Try: listen to <something>)")
                     return false
                 end
@@ -3006,15 +2861,12 @@ return {
                 engine.output("You can't smell that.")
             end,
             on = function(ctx)
-                if ctx.noun then
-                    engine.output("You smell " .. (ctx.noun.name or "it") .. ". Nothing remarkable.")
+                if ctx.object ~= 0 then
+                    local name = engine.get_prop(ctx.object, "name") or "it"
+                    engine.output("You smell " .. name .. ". Nothing remarkable.")
                 else
                     engine.output("You sniff the air. Nothing unusual.")
                 end
-            end,
-            after = function(ctx)
-            end,
-            report = function(ctx)
             end,
         },
     },
@@ -3029,17 +2881,14 @@ return {
         prompt_no_noun = "Taste what?",
         stages = {
             test = function(ctx)
-                return ctx.noun ~= nil
+                return ctx.object ~= 0
             end,
             instead_of = function(ctx)
                 engine.output("You can't taste that.")
             end,
             on = function(ctx)
-                engine.output("You taste " .. ctx.noun.name .. ". Nothing remarkable.")
-            end,
-            after = function(ctx)
-            end,
-            report = function(ctx)
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                engine.output("You taste " .. name .. ". Nothing remarkable.")
             end,
         },
     },
@@ -3149,17 +2998,14 @@ return {
         prompt_no_noun = "Look under what?",
         stages = {
             test = function(ctx)
-                return ctx.noun ~= nil
+                return ctx.object ~= 0
             end,
             instead_of = function(ctx)
                 engine.output("You can't look under that.")
             end,
             on = function(ctx)
-                engine.output("You look under " .. ctx.noun.name .. ".")
-            end,
-            after = function(ctx)
-            end,
-            report = function(ctx)
+                local name = engine.get_prop(ctx.object, "name") or "it"
+                engine.output("You look under " .. name .. ".")
             end,
         },
     },
