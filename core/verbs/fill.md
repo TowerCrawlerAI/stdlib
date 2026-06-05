@@ -25,16 +25,15 @@ current room. The source must be marked `fillable_source: true`. Sets
 ###### Test Fill
 
 ```luau
-if ctx.noun == nil then return false end
-if ctx.noun_2 == nil then return false end
--- Vessel must be a container (or at least portable and open).
-if ctx.noun.kind ~= "container" and ctx.noun.fillable_vessel ~= "true" then
+-- Graph ctx: ctx.object = vessel (carried), ctx.object2 = source (reachable).
+if ctx.object == 0 or ctx.object2 == 0 then return false end
+if engine.get_prop(ctx.object, "kind") ~= "container"
+   and not engine.get_prop(ctx.object, "fillable_vessel") then
     return false
 end
--- Vessel must not already be full.
-if ctx.noun.filled == "true" then return false end
--- Source must be a fillable liquid source.
-if ctx.noun_2.fillable_source ~= "true" and ctx.noun_2.kind ~= "liquid" then
+if engine.get_prop(ctx.object, "filled") then return false end
+if not engine.get_prop(ctx.object2, "fillable_source")
+   and engine.get_prop(ctx.object2, "kind") ~= "liquid" then
     return false
 end
 return true
@@ -43,36 +42,31 @@ return true
 ###### InsteadOf Fill
 
 ```luau
-if ctx.noun == nil then
+local cname = engine.get_prop(ctx.object, "name") or "it"
+if ctx.object == 0 then
     engine.output("Fill what?")
-    return
-end
-if ctx.noun_2 == nil then
+elseif ctx.object2 == 0 then
     engine.output("Fill it with what?")
-    return
-end
-if ctx.noun.filled == "true" then
-    engine.output("The " .. ctx.noun.name .. " is already full.")
-    return
-end
-if ctx.noun.kind ~= "container" and ctx.noun.fillable_vessel ~= "true" then
-    engine.output("You can't fill the " .. ctx.noun.name .. ".")
-    return
-end
-if ctx.noun_2.fillable_source ~= "true" and ctx.noun_2.kind ~= "liquid" then
-    engine.output("You can't get any of the " .. ctx.noun_2.name .. " into the " .. ctx.noun.name .. ".")
-    return
+elseif engine.get_prop(ctx.object, "filled") then
+    engine.output("The " .. cname .. " is already full.")
+elseif engine.get_prop(ctx.object, "kind") ~= "container"
+       and not engine.get_prop(ctx.object, "fillable_vessel") then
+    engine.output("You can't fill the " .. cname .. ".")
+else
+    local sname = engine.get_prop(ctx.object2, "name") or "that"
+    engine.output("You can't get any of the " .. sname .. " into the " .. cname .. ".")
 end
 ```
 
 ###### On Fill
 
 ```luau
--- Determine what substance the source contains (or use source itself).
-local substance_id = ctx.noun_2.contents or ctx.noun_2.id
-engine.set_property(ctx.noun.entity_id, "filled", "true")
-engine.set_property(ctx.noun.entity_id, "contents", substance_id)
-engine.output("You fill the " .. ctx.noun.name .. " from the " .. ctx.noun_2.name .. ". The water is shockingly cold.")
+-- Store the source node id as the vessel's contents (drink reads its effect).
+local cname = engine.get_prop(ctx.object, "name") or "vessel"
+local sname = engine.get_prop(ctx.object2, "name") or "source"
+engine.set_prop(ctx.object, "filled", true)
+engine.set_prop(ctx.object, "contents", ctx.object2)
+engine.output("You fill the " .. cname .. " from the " .. sname .. ". The water is shockingly cold.")
 ```
 
 ###### After Fill
