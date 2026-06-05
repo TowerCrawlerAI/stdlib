@@ -14,8 +14,8 @@
 
 Read a text-bearing object: a document, scroll, sign, book, or any entity
 marked `readable: true`. Emits the target's `text` property if present,
-falling back to `inscription`, then `contents`, then the general `prose`
-description. Semantically distinct from `examine` — examine describes the
+falling back to `inscription`, then `contents`, then the `description`
+property. Semantically distinct from `examine` — examine describes the
 physical object; read conveys its written content.
 
 #### Triggers

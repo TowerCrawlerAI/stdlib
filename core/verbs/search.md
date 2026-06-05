@@ -30,6 +30,7 @@ return engine.get_prop(ctx.object, "searchable")
 ###### InsteadOf Search
 
 ```luau
+if ctx.object == 0 then engine.output("Search what?") return end
 local name = engine.get_prop(ctx.object, "name") or "it"
 engine.output("There's nothing to search on " .. name .. ".")
 ```
