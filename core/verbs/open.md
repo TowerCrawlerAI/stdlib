@@ -21,21 +21,19 @@ Open a door, chest, or container. Fails if already open, locked, or sealed.
 ###### Test Open
 
 ```luau
--- v0.1: per-verb attribute check. When kind chains and materials land
--- (tasks #9, #24), this lookup will move into the kind/material
--- chain so authors can mark whole kinds (container, door) openable
--- without touching every verb's Test.
-if ctx.noun == nil then return false end
-local openable = ctx.noun.openable == "true" or ctx.noun.kind == "container" or ctx.noun.kind == "door"
+-- Graph ctx: ctx.object is the noun node id; props are real values (booleans,
+-- not "true"). Doors use a "state" string; containers a boolean "open".
+if ctx.object == 0 then return false end
+local kind = engine.get_prop(ctx.object, "kind")
+local openable = engine.get_prop(ctx.object, "openable")
+    or kind == "container" or kind == "door"
 if not openable then return false end
--- Doors use state-based logic; containers use the legacy open/locked properties.
-if ctx.noun.kind == "door" then
-    local state = ctx.noun.state or "closed"
-    if state == "locked" then return false end
-    if state == "open" then return false end
+if kind == "door" then
+    local state = engine.get_prop(ctx.object, "state") or "closed"
+    if state == "locked" or state == "open" then return false end
 else
-    if ctx.noun.locked == "true" then return false end
-    if ctx.noun.open == "true" then return false end
+    if engine.get_prop(ctx.object, "locked") then return false end
+    if engine.get_prop(ctx.object, "open") then return false end
 end
 return true
 ```
@@ -43,56 +41,58 @@ return true
 ###### InsteadOf Open
 
 ```luau
-local openable = ctx.noun.openable == "true" or ctx.noun.kind == "container" or ctx.noun.kind == "door"
-if ctx.noun.kind == "door" then
-    local state = ctx.noun.state or "closed"
+local name = engine.get_prop(ctx.object, "name") or "it"
+local kind = engine.get_prop(ctx.object, "kind")
+local openable = engine.get_prop(ctx.object, "openable")
+    or kind == "container" or kind == "door"
+if kind == "door" then
+    local state = engine.get_prop(ctx.object, "state") or "closed"
     if state == "locked" then
-        engine.output(ctx.noun.name .. " is locked.")
+        engine.output(name .. " is locked.")
     elseif state == "open" then
-        engine.output(ctx.noun.name .. " is already open.")
+        engine.output(name .. " is already open.")
     elseif not openable then
-        engine.output(ctx.noun.name .. " isn't something you can open.")
+        engine.output(name .. " isn't something you can open.")
     else
-        engine.output(ctx.noun.name .. " is already open.")
+        engine.output(name .. " is already open.")
     end
-elseif ctx.noun.locked == "true" then
-    engine.output(ctx.noun.name .. " is locked.")
+elseif engine.get_prop(ctx.object, "locked") then
+    engine.output(name .. " is locked.")
 elseif not openable then
-    engine.output(ctx.noun.name .. " isn't something you can open.")
+    engine.output(name .. " isn't something you can open.")
 else
-    engine.output(ctx.noun.name .. " is already open.")
+    engine.output(name .. " is already open.")
 end
 ```
 
 ###### On Open
 
 ```luau
--- Doors use state property; containers use the legacy open property.
-if ctx.noun.kind == "door" then
-    engine.set_property(ctx.noun.entity_id, "state", "open")
+local name = engine.get_prop(ctx.object, "name") or "it"
+if engine.get_prop(ctx.object, "kind") == "door" then
+    engine.set_prop(ctx.object, "state", "open")
 else
-    engine.set_property(ctx.noun.entity_id, "open", "true")
+    engine.set_prop(ctx.object, "open", true)
 end
-engine.output("You open " .. ctx.noun.name .. ".")
+engine.output("You open " .. name .. ".")
 ```
 
 ###### After Open
 
 ```luau
--- Reveal contents now that the container is open.
--- Exception: enterable containers (e.g. a sarcophagus you can climb inside)
--- do not list their contents to outside observers — the player must enter
--- to discover what's there. This is the correct semantic for any container
--- large enough to occupy (wagon, wardrobe, large chest, etc.).
-if ctx.noun.enterable == "true" then
-    return
-end
-local contents = engine.entities_in(ctx.noun.entity_id)
+-- Reveal contents now that the container is open. (The engine's SEE/TOUCH scope
+-- also descends into open|transparent containers, so the contents become
+-- examinable/takeable automatically.)
+-- Exception: enterable containers (e.g. a sarcophagus you can climb inside) do
+-- not list their contents to outside observers — the player must enter.
+if engine.get_prop(ctx.object, "enterable") then return end
+local contents = engine.neighbors(ctx.object, "in", "in")
 if #contents > 0 then
     local names = {}
-    for _, item in ipairs(contents) do
-        table.insert(names, item.name or "something")
+    for _, id in ipairs(contents) do
+        table.insert(names, engine.get_prop(id, "name") or "something")
     end
-    engine.output(ctx.noun.name .. " contains: " .. table.concat(names, ", ") .. ".")
+    local name = engine.get_prop(ctx.object, "name") or "It"
+    engine.output(name .. " contains: " .. table.concat(names, ", ") .. ".")
 end
 ```
