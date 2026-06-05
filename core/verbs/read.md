@@ -23,18 +23,18 @@ physical object; read conveys its written content.
 ###### Test Read
 
 ```luau
-if ctx.noun == nil then return false end
-return ctx.noun.readable == "true"
-    or ctx.noun.kind == "document"
-    or ctx.noun.kind == "book"
-    or ctx.noun.kind == "sign"
-    or ctx.noun.kind == "scroll"
+if ctx.object == 0 then return false end
+return engine.get_prop(ctx.object, "readable")
+    or engine.get_prop(ctx.object, "kind") == "document"
+    or engine.get_prop(ctx.object, "kind") == "book"
+    or engine.get_prop(ctx.object, "kind") == "sign"
+    or engine.get_prop(ctx.object, "kind") == "scroll"
 ```
 
 ###### InsteadOf Read
 
 ```luau
-if ctx.noun == nil then
+if ctx.object == 0 then
     engine.output("Read what?")
     return
 end
@@ -44,23 +44,14 @@ engine.output("You can't read that.")
 ###### On Read
 
 ```luau
-if ctx.noun == nil then return end
-local text = ctx.noun.text
-    or ctx.noun.inscription
-    or ctx.noun.contents
-    or engine.call_prose(ctx.noun.entity_id, "prose", ctx)
-    or engine.call_prose(ctx.noun.entity_id, "description", ctx)
+local text = engine.get_prop(ctx.object, "text")
+    or engine.get_prop(ctx.object, "inscription")
+    or engine.get_prop(ctx.object, "contents")
+    or engine.get_prop(ctx.object, "description")
+local name = engine.get_prop(ctx.object, "name") or "it"
 if text then
     engine.output(text)
 else
-    engine.output("There is nothing written on " .. (ctx.noun.name or "it") .. ".")
-end
-```
-
-###### After Read
-
-```luau
-if ctx.noun and ctx.noun.entity_id then
-    engine.fire_event("Read", ctx.noun.entity_id, { actor = ctx.actor.entity_id })
+    engine.output("There is nothing written on " .. name .. ".")
 end
 ```

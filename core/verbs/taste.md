@@ -19,7 +19,7 @@ Taste an object — rarely useful, occasionally interesting.
 ###### Test Taste
 
 ```luau
-return ctx.noun ~= nil
+return ctx.object ~= 0
 ```
 
 ###### InsteadOf Taste
@@ -28,8 +28,7 @@ return ctx.noun ~= nil
 
 ###### On Taste
 
-> You taste *noun.name*. Nothing remarkable.
-
-###### After Taste
-
-###### Report Taste
+```luau
+local name = engine.get_prop(ctx.object, "name") or "it"
+engine.output("You taste " .. name .. ". Nothing remarkable.")
+```

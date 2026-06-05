@@ -18,7 +18,7 @@ List the entities the player is currently carrying.
 ###### Test Inventory
 
 ```luau
-if ctx.noun ~= nil then
+if ctx.object ~= 0 then
     engine.output("You can only check your own inventory.")
     return false
 end
@@ -28,13 +28,13 @@ return true
 ###### On Inventory
 
 ```luau
-local items = engine.entities_in(ctx.actor.entity_id)
+local items = engine.neighbors(ctx.actor, "carried", "in")
 if #items == 0 then
     engine.output("You are carrying nothing.")
 else
     local names = {}
-    for _, item in ipairs(items) do
-        table.insert(names, item.name or "something")
+    for _, id in ipairs(items) do
+        table.insert(names, engine.get_prop(id, "name") or "something")
     end
     engine.output("You are carrying: " .. table.concat(names, ", ") .. ".")
 end

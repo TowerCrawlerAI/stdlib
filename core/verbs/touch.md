@@ -19,8 +19,8 @@ Touch or feel an object, often revealing its texture or temperature.
 ###### Test Touch
 
 ```luau
-if ctx.noun == nil then return false end
-return engine.can_touch(ctx.actor.entity_id, ctx.noun.entity_id)
+if ctx.object == 0 then return false end
+return engine.can_touch(ctx.actor, ctx.object)
 ```
 
 ###### InsteadOf Touch
@@ -30,23 +30,8 @@ return engine.can_touch(ctx.actor.entity_id, ctx.noun.entity_id)
 ###### On Touch
 
 ```luau
-if ctx.noun == nil then
-    engine.output("Touch what?")
-    return
-end
--- 1. Call noun-level on:Touch trigger (sub-entity or standalone entity).
--- 2. If not found, call room-level on:Touch trigger (for room-wide reactions
---    like a spring rib that wakes a guardian).
--- 3. Fall back to default "Nothing happens" prose.
-local handled = engine.call_trigger(ctx.noun.entity_id, "on:Touch", ctx)
-if not handled and ctx.room ~= nil then
-    handled = engine.call_trigger(ctx.room.entity_id, "on:Touch", ctx)
-end
-if not handled then
-    engine.output("You touch " .. (ctx.noun.name or "it") .. ". Nothing happens.")
-end
+-- engine.call_trigger has no graph equivalent yet; fall back to default prose.
+-- (Per-object touch reactions will be revisited when the event/trigger graph model lands.)
+local name = engine.get_prop(ctx.object, "name") or "it"
+engine.output("You touch " .. name .. ". Nothing happens.")
 ```
-
-###### After Touch
-
-###### Report Touch

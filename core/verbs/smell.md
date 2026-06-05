@@ -29,13 +29,10 @@ return true
 ###### On Smell
 
 ```luau
-if ctx.noun then
-    engine.output("You smell " .. (ctx.noun.name or "it") .. ". Nothing remarkable.")
+if ctx.object ~= 0 then
+    local name = engine.get_prop(ctx.object, "name") or "it"
+    engine.output("You smell " .. name .. ". Nothing remarkable.")
 else
     engine.output("You sniff the air. Nothing unusual.")
 end
 ```
-
-###### After Smell
-
-###### Report Smell

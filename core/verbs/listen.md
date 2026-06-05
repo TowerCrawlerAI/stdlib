@@ -17,7 +17,7 @@ Listen to the ambient sounds of the current location.
 ###### Test Listen
 
 ```luau
-if ctx.noun ~= nil then
+if ctx.object ~= 0 then
     engine.output("Listen to what? (Try: listen to <something>)")
     return false
 end

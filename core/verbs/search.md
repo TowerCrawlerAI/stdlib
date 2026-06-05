@@ -21,22 +21,22 @@ Search an object or area thoroughly for hidden items or information.
 ```luau
 -- v0.1: per-verb attribute check. When kind chains land (task #9),
 -- containers and surfaces will carry searchable implicitly.
-if ctx.noun == nil then return false end
-return ctx.noun.searchable == "true"
-    or ctx.noun.kind == "container"
-    or ctx.noun.kind == "supporter"
+if ctx.object == 0 then return false end
+return engine.get_prop(ctx.object, "searchable")
+    or engine.get_prop(ctx.object, "kind") == "container"
+    or engine.get_prop(ctx.object, "kind") == "supporter"
 ```
 
 ###### InsteadOf Search
 
 ```luau
-engine.output("There's nothing to search on " .. ctx.noun.name .. ".")
+local name = engine.get_prop(ctx.object, "name") or "it"
+engine.output("There's nothing to search on " .. name .. ".")
 ```
 
 ###### On Search
 
-> You search *noun.name*.
-
-###### After Search
-
-###### Report Search
+```luau
+local name = engine.get_prop(ctx.object, "name") or "it"
+engine.output("You search " .. name .. ".")
+```
