@@ -21,19 +21,17 @@ Close an open door, chest, or container. Fails if already closed or not openable
 ###### Test Close
 
 ```luau
--- v0.1: per-verb attribute check. When kind chains and materials land
--- (tasks #9, #24), this lookup will move into the kind/material
--- chain so authors can mark whole kinds (container, door) openable
--- without touching every verb's Test.
-if ctx.noun == nil then return false end
-local openable = ctx.noun.openable == "true" or ctx.noun.kind == "container" or ctx.noun.kind == "door"
+-- Graph ctx: ctx.object node id; real-value props. Doors use a "state" string;
+-- containers a boolean "open".
+if ctx.object == 0 then return false end
+local kind = engine.get_prop(ctx.object, "kind")
+local openable = engine.get_prop(ctx.object, "openable")
+    or kind == "container" or kind == "door"
 if not openable then return false end
--- Doors use state-based logic; containers use the legacy open property.
-if ctx.noun.kind == "door" then
-    local state = ctx.noun.state or "closed"
-    if state ~= "open" then return false end
+if kind == "door" then
+    if (engine.get_prop(ctx.object, "state") or "closed") ~= "open" then return false end
 else
-    if ctx.noun.open ~= "true" then return false end
+    if not engine.get_prop(ctx.object, "open") then return false end
 end
 return true
 ```
@@ -41,22 +39,25 @@ return true
 ###### InsteadOf Close
 
 ```luau
-local openable = ctx.noun.openable == "true" or ctx.noun.kind == "container" or ctx.noun.kind == "door"
+local name = engine.get_prop(ctx.object, "name") or "it"
+local kind = engine.get_prop(ctx.object, "kind")
+local openable = engine.get_prop(ctx.object, "openable")
+    or kind == "container" or kind == "door"
 if not openable then
-    engine.output(ctx.noun.name .. " isn't something you can close.")
+    engine.output(name .. " isn't something you can close.")
 else
-    engine.output(ctx.noun.name .. " is already closed.")
+    engine.output(name .. " is already closed.")
 end
 ```
 
 ###### On Close
 
 ```luau
--- Doors use state property; containers use the legacy open property.
-if ctx.noun.kind == "door" then
-    engine.set_property(ctx.noun.entity_id, "state", "closed")
+local name = engine.get_prop(ctx.object, "name") or "it"
+if engine.get_prop(ctx.object, "kind") == "door" then
+    engine.set_prop(ctx.object, "state", "closed")
 else
-    engine.set_property(ctx.noun.entity_id, "open", "false")
+    engine.set_prop(ctx.object, "open", false)
 end
-engine.output("You close " .. ctx.noun.name .. ".")
+engine.output("You close " .. name .. ".")
 ```
