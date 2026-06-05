@@ -24,42 +24,40 @@ that topic is emitted if found.
 ###### Test Consult
 
 ```luau
-return ctx.noun ~= nil
+return ctx.object ~= 0
 ```
 
 ###### On Consult
 
 ```luau
 -- Determine response: if topic provided, try reference work's sub-entity match.
-local ref = ctx.noun
-local topic = ctx.noun_2
+local ref = ctx.object
+local topic = ctx.object2  -- 0 if no topic given
 local response = nil
 
-if topic and ref and ref.entity_id then
-    -- Check if the reference work has a child entity matching this topic.
-    local children = engine.entities_in(ref.entity_id)
-    if children then
-        local topic_name = topic.name or topic.id or ""
-        for _, child in ipairs(children) do
-            if child.kind == "topic" then
-                local child_name = child.name or child.id or ""
-                if child_name == topic_name then
-                    response = child.response
-                    break
-                end
+if topic ~= 0 then
+    -- Check if the reference work has a child entity (kind=="topic") matching this topic.
+    local children = engine.neighbors(ref, "in", "in")
+    local topic_name = engine.get_prop(topic, "name") or ""
+    for _, child in ipairs(children) do
+        if engine.get_prop(child, "kind") == "topic" then
+            local child_name = engine.get_prop(child, "name") or ""
+            if child_name == topic_name then
+                response = engine.get_prop(child, "response")
+                break
             end
         end
     end
-    -- Fall back to the global topic response.
+    -- Fall back to the global topic response property.
     if response == nil then
-        response = topic.response
+        response = engine.get_prop(topic, "response")
     end
 end
 
 if response == nil then
-    local ref_name = (ref and ref.name) or "it"
-    if topic then
-        local topic_name = (topic and topic.name) or "that"
+    local ref_name = engine.get_prop(ref, "name") or "it"
+    if topic ~= 0 then
+        local topic_name = engine.get_prop(topic, "name") or "that"
         response = "You consult " .. ref_name .. " about " .. topic_name .. " but find nothing useful."
     else
         response = "You consult " .. ref_name .. "."
@@ -67,12 +65,4 @@ if response == nil then
 end
 
 engine.output(response)
-```
-
-###### After Consult
-
-```luau
-if ctx.noun and ctx.noun.entity_id then
-    engine.fire_event("Consulted", ctx.noun.entity_id, {})
-end
 ```

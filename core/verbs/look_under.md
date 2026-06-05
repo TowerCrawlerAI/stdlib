@@ -19,7 +19,7 @@ Look beneath an object for hidden items.
 ###### Test LookUnder
 
 ```luau
-return ctx.noun ~= nil
+return ctx.object ~= 0
 ```
 
 ###### InsteadOf LookUnder
@@ -28,8 +28,7 @@ return ctx.noun ~= nil
 
 ###### On LookUnder
 
-> You look under *noun.name*.
-
-###### After LookUnder
-
-###### Report LookUnder
+```luau
+local name = engine.get_prop(ctx.object, "name") or "it"
+engine.output("You look under " .. name .. ".")
+```
