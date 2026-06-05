@@ -23,91 +23,56 @@ Describe a single entity in scope. `look at X`, `look in X`, and `look X` all di
 ###### Test Examine
 
 ```luau
-if ctx.noun == nil then return false end
-local level = engine.light_level(ctx.room.entity_id, ctx.actor.entity_id)
--- Items not in the actor's own inventory require light level >= 2.
-if level < 2 and ctx.noun.location ~= tostring(ctx.actor.entity_id) then
-    return false
-end
-return engine.can_see(ctx.actor.entity_id, ctx.noun.entity_id)
+-- Graph ctx (engine-core STAGE_API.md): ctx.object is the noun node id (0 = none).
+-- (Light gating dropped — the graph engine has no light model yet.)
+if ctx.object == 0 then return false end
+return engine.can_see(ctx.actor, ctx.object)
 ```
 
 ###### InsteadOf Examine
 
 ```luau
--- Noun didn't resolve. If the literal is a direction word, describe the exit.
--- Otherwise fall back to a generic "can't see that" message.
-local DIRECTIONS = {
-    north=true, south=true, east=true, west=true, up=true, down=true,
-    n=true, s=true, e=true, w=true, u=true, d=true,
-    northeast=true, northwest=true, southeast=true, southwest=true,
-    ne=true, nw=true, se=true, sw=true, ["in"]=true, out=true, inside=true, outside=true,
-}
-local lit = ctx.literal
-if lit ~= nil and ctx.room ~= nil then
-    local lower = string.lower(lit)
-    if DIRECTIONS[lower] then
-        local dest_id = engine.resolve_direction(ctx.room.entity_id, lower)
-        if dest_id and dest_id ~= 0 then
-            local dest = engine.query_entity(dest_id)
-            local name = (dest and dest.name) or "elsewhere"
-            engine.output("That way leads to " .. name .. ".")
-        else
-            engine.output("That way leads nowhere.")
-        end
-        return
-    end
-end
+-- Noun didn't resolve. (Legacy direction-word exit description is dropped until
+-- the graph engine models direction-labeled exits.)
 engine.output("You can't see that here.")
 ```
 
 ###### On Examine
 
 ```luau
-if ctx.noun == nil then
+-- Graph ctx: ctx.object is the noun node id; props are real values (a boolean
+-- prop reads back as a Lua boolean, not the string "true").
+if ctx.object == 0 then
     engine.output("You can't see that here.")
     return
 end
-local level = engine.light_level(ctx.room.entity_id, ctx.actor.entity_id)
-if level < 2 and ctx.noun.location ~= tostring(ctx.actor.entity_id) then
-    engine.output("It's too dark to make out any details.")
-    return
-end
-if not engine.can_see(ctx.actor.entity_id, ctx.noun.entity_id) then
+if not engine.can_see(ctx.actor, ctx.object) then
     engine.output("You can't see that here.")
     return
 end
-local _noun_prose = engine.call_prose(ctx.noun.entity_id, "prose", ctx)
-    or engine.call_prose(ctx.noun.entity_id, "description", ctx)
-    or ctx.noun.name
-engine.output(_noun_prose or ctx.noun.name)
+local desc = engine.get_prop(ctx.object, "description")
+engine.output(desc or engine.get_prop(ctx.object, "name") or "You see nothing special.")
 -- Surface lit state for light sources.
-if ctx.noun.lightable == "true" then
-    if ctx.noun.lit == "true" then
+if engine.get_prop(ctx.object, "lightable") then
+    if engine.get_prop(ctx.object, "lit") then
         engine.output("It is currently lit.")
     else
         engine.output("It is unlit.")
     end
 end
--- If open or transparent, list visible contents.
-if ctx.noun.open == "true" or ctx.noun.transparent == "true" then
-    local contents = engine.entities_in(ctx.noun.entity_id)
-    if #contents > 0 then
-        local names = {}
-        for _, item in ipairs(contents) do
-            if engine.can_see(ctx.actor.entity_id, item.entity_id) then
-                table.insert(names, item.name or "something")
-            end
-        end
-        if #names > 0 then
-            engine.output("Inside you see: " .. table.concat(names, ", ") .. ".")
+-- If open or transparent, list visible contents: items whose "in" edge points
+-- at this object (incoming "in" neighbours).
+if engine.get_prop(ctx.object, "open") or engine.get_prop(ctx.object, "transparent") then
+    local contents = engine.neighbors(ctx.object, "in", "in")
+    local names = {}
+    for _, id in ipairs(contents) do
+        if engine.can_see(ctx.actor, id) then
+            local nm = engine.get_prop(id, "name")
+            if nm then table.insert(names, nm) end
         end
     end
+    if #names > 0 then
+        engine.output("Inside you see: " .. table.concat(names, ", ") .. ".")
+    end
 end
-```
-
-###### After Examine
-
-```luau
-engine.fire_event("Examined", ctx.noun.entity_id, { actor = ctx.actor.entity_id })
 ```
