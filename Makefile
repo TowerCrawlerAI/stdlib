@@ -1,7 +1,7 @@
 # Makefile — lower the core FML stdlib to Lua
 #
 # Requires fml-parser to be installed:
-#   pip install "fml_parser @ git+https://github.com/TowerCrawlerAI/fml-parser@main"
+#   pip install "fml_parser @ git+https://github.com/TowerCrawlerAI/clotho@main"
 # or locally (dev):
 #   pip install -e /path/to/fml-parser
 #
