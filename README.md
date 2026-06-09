@@ -46,7 +46,7 @@ engine binary.
 
 ```sh
 # Pinned release (once F4 ships):
-pip install "fml_parser @ git+https://github.com/TowerCrawlerAI/fml-parser@main"
+pip install "fml_parser @ git+https://github.com/TowerCrawlerAI/clotho@main"
 # …or from a local sibling clone during development:
 pip install -e /path/to/fml-parser
 ```

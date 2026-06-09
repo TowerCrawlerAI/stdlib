@@ -1,7 +1,7 @@
 # stdlib — CLAUDE.md
 
 The FML-markdown **verb / kind / relation catalog** the engine runs. Part of the TowerCrawlerAI workspace;
-see the root `CLAUDE.md` for the multi-repo map + pipeline, and `../engine-core/docs/design/ENGINE_MODEL.md`
+see the root `CLAUDE.md` for the multi-repo map + pipeline, and `../wyrd/docs/design/ENGINE_MODEL.md`
 for the engine this content targets.
 
 ## Layers
@@ -18,7 +18,7 @@ for the engine this content targets.
 The engine loads a *lowered* Lua verb-module, not the markdown. Produce it with `fml-parser`:
 
 ```bash
-pip install -e ../fml-parser
+pip install -e ../clotho
 make lower            # → build/stdlib.lua  (python -m fml_parser --stdlib-module core/index.md)
 ```
 
