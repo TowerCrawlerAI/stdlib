@@ -34,25 +34,25 @@ Each file is the pregen wrapper defined in `wiki/operationalize/20-character-sto
   dnd5e kinds, not to `state` (carried-item portable props are also only `hp/max_hp/ac/level`). The
   sheet's `equipment` carries the human-readable detail.
 
-## Known issue flagged by review (2026-06-17) — fix before approval
+## Ability arrays — corrected 2026-06-17 (all four now standard-array-legal)
 
-**Three of the four ability arrays do not reconcile to "standard array + the stated racial bonuses"**
-(the Wizard does). They need a build pass — fixing them cascades into HP/Con and where the spare 15
-lands, which is a deliberate build choice, so it is left to this review rather than auto-edited:
+Code review found three arrays that didn't reconcile to "standard array + racial bonuses". Fixed so
+every array backs out exactly to {15,14,13,12,10,8} before racials, choosing assignments that leave
+HP/AC/`state.stats` unchanged (the bump lands on the previously-unused 15):
 
-- **fighter** (Mountain Dwarf +2 Str/+2 Con): final Str 16/Con 16 ⇒ pre-racial {14,14,13,12,10,8} —
-  two 14s, no 15. Not standard array.
-- **cleric** (Hill Dwarf +2 Con/+1 Wis): final Con 15/Wis 16 ⇒ pre-racial {13,13,15,12,10,8} —
-  two 13s, no 14. (Trivial fix: Str 13→14.)
-- **rogue** (Lightfoot Halfling +2 Dex/+1 Cha): final Dex 16/Cha 13 ⇒ pre-racial {14,14,12,12,10,8} —
-  two 14s + two 12s, no 15/13.
+- **fighter** (Mtn Dwarf +2 Str/+2 Con): Str 16→**17** ⇒ pre-racial {15,14,13,12,10,8}. Con +3, HP 31,
+  AC 18 unchanged.
+- **cleric** (Hill Dwarf +2 Con/+1 Wis): Str 13→**14** ⇒ pre-racial {15,14,13,12,10,8}. Con +2, HP 24,
+  AC 18 unchanged.
+- **rogue** (Lightfoot Halfling +2 Dex/+1 Cha): Dex 16→**17**, Int 12→**13** ⇒ pre-racial
+  {15,14,13,12,10,8}. Dex +3, HP 24, AC 15 unchanged; Wis/Cha preserved.
 
-Either correct the arrays to legal standard-array assignments (and re-derive HP where Con changes) or
-switch the documented method to point-buy. Update `state.stats` to match if HP/AC move.
+Wizard (High Elf) was already legal. Remaining review (subclass features, spell lists, equipment) is
+still open — see the checklist.
 
 ## Review checklist (this PR)
 
-- [ ] Ability arrays reconcile to the documented method (see "Known issue" above — 3 of 4 currently don't).
+- [x] Ability arrays reconcile to standard array + racial bonuses (corrected 2026-06-17).
 - [ ] HP (avg-roll rule), AC (armor + shield + Dex), proficiency bonus (+2 at L3) are correct.
 - [ ] Save + skill proficiencies match class/background; Rogue expertise is right.
 - [ ] Spell slots (Cleric/Wizard: 4×1st, 2×2nd at L3), cantrip counts, prepared lists are correct.

@@ -8,7 +8,7 @@
     "className": "Rogue (Thief)",
     "level": 3,
     "proficiencyBonus": 2,
-    "abilities": { "str": 8, "dex": 16, "con": 14, "int": 12, "wis": 10, "cha": 13 },
+    "abilities": { "str": 8, "dex": 17, "con": 14, "int": 13, "wis": 10, "cha": 13 },
     "hp": { "current": 24, "max": 24 },
     "ac": 15,
     "saveProficiencies": ["dex", "int"],

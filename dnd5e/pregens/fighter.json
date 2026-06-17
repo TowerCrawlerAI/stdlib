@@ -8,7 +8,7 @@
     "className": "Fighter (Champion)",
     "level": 3,
     "proficiencyBonus": 2,
-    "abilities": { "str": 16, "dex": 13, "con": 16, "int": 8, "wis": 12, "cha": 10 },
+    "abilities": { "str": 17, "dex": 13, "con": 16, "int": 8, "wis": 12, "cha": 10 },
     "hp": { "current": 31, "max": 31 },
     "ac": 18,
     "saveProficiencies": ["str", "con"],

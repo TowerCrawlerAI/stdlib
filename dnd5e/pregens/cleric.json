@@ -8,7 +8,7 @@
     "className": "Cleric (Life Domain)",
     "level": 3,
     "proficiencyBonus": 2,
-    "abilities": { "str": 13, "dex": 10, "con": 15, "int": 8, "wis": 16, "cha": 12 },
+    "abilities": { "str": 14, "dex": 10, "con": 15, "int": 8, "wis": 16, "cha": 12 },
     "hp": { "current": 24, "max": 24 },
     "ac": 18,
     "saveProficiencies": ["wis", "cha"],
