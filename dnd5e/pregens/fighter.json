@@ -1,0 +1,38 @@
+{
+  "pregen_id": "fighter",
+  "_status": "DRAFT — needs dnd5e review",
+  "portrait": "pregens/portraits/fighter.png",
+  "sheet": {
+    "name": "Bram Ironfoot",
+    "race": "Mountain Dwarf",
+    "className": "Fighter (Champion)",
+    "level": 3,
+    "proficiencyBonus": 2,
+    "abilities": { "str": 17, "dex": 13, "con": 16, "int": 8, "wis": 12, "cha": 10 },
+    "hp": { "current": 31, "max": 31 },
+    "ac": 18,
+    "saveProficiencies": ["str", "con"],
+    "skillProficiencies": ["athletics", "perception"],
+    "equipment": [
+      { "name": "Chain Mail", "qty": 1, "equipped": true, "notes": "AC 16, heavy" },
+      { "name": "Shield", "qty": 1, "equipped": true, "notes": "+2 AC" },
+      { "name": "Warhammer", "qty": 1, "equipped": true, "notes": "1d8 bludgeoning, versatile (1d10)" },
+      { "name": "Handaxe", "qty": 2, "equipped": false, "notes": "1d6 slashing, thrown 20/60" },
+      { "name": "Light Crossbow", "qty": 1, "equipped": false, "notes": "1d8 piercing, range 80/320" },
+      { "name": "Crossbow Bolts", "qty": 20, "equipped": false },
+      { "name": "Explorer's Pack", "qty": 1, "equipped": false }
+    ],
+    "spells": { "entries": [] }
+  },
+  "state": {
+    "inventory": [
+      { "name": "Chain Mail", "props": {} },
+      { "name": "Shield", "props": {} },
+      { "name": "Warhammer", "props": {} },
+      { "name": "Handaxe", "props": {} },
+      { "name": "Light Crossbow", "props": {} }
+    ],
+    "stats": { "hp": 31, "max_hp": 31, "ac": 18, "level": 3 },
+    "props": {}
+  }
+}

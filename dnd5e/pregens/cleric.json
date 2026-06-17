@@ -1,0 +1,51 @@
+{
+  "pregen_id": "cleric",
+  "_status": "DRAFT — needs dnd5e review",
+  "portrait": "pregens/portraits/cleric.png",
+  "sheet": {
+    "name": "Sister Mara",
+    "race": "Hill Dwarf",
+    "className": "Cleric (Life Domain)",
+    "level": 3,
+    "proficiencyBonus": 2,
+    "abilities": { "str": 14, "dex": 10, "con": 15, "int": 8, "wis": 16, "cha": 12 },
+    "hp": { "current": 24, "max": 24 },
+    "ac": 18,
+    "saveProficiencies": ["wis", "cha"],
+    "skillProficiencies": ["insight", "medicine", "religion"],
+    "equipment": [
+      { "name": "Chain Mail", "qty": 1, "equipped": true, "notes": "AC 16, heavy (Life Domain prof)" },
+      { "name": "Shield", "qty": 1, "equipped": true, "notes": "+2 AC" },
+      { "name": "Mace", "qty": 1, "equipped": true, "notes": "1d6 bludgeoning" },
+      { "name": "Holy Symbol (Amulet)", "qty": 1, "equipped": true, "notes": "spellcasting focus" },
+      { "name": "Light Crossbow", "qty": 1, "equipped": false, "notes": "1d8 piercing, range 80/320" },
+      { "name": "Crossbow Bolts", "qty": 20, "equipped": false },
+      { "name": "Priest's Pack", "qty": 1, "equipped": false }
+    ],
+    "spells": {
+      "slots": { "1": { "total": 4, "used": 0 }, "2": { "total": 2, "used": 0 } },
+      "entries": [
+        { "name": "Sacred Flame", "level": 0, "prepared": true, "notes": "cantrip" },
+        { "name": "Guidance", "level": 0, "prepared": true, "notes": "cantrip" },
+        { "name": "Light", "level": 0, "prepared": true, "notes": "cantrip" },
+        { "name": "Cure Wounds", "level": 1, "prepared": true, "notes": "Life domain — always prepared" },
+        { "name": "Bless", "level": 1, "prepared": true, "notes": "Life domain — always prepared" },
+        { "name": "Healing Word", "level": 1, "prepared": true },
+        { "name": "Guiding Bolt", "level": 1, "prepared": false },
+        { "name": "Shield of Faith", "level": 1, "prepared": false },
+        { "name": "Lesser Restoration", "level": 2, "prepared": true, "notes": "Life domain — always prepared" },
+        { "name": "Spiritual Weapon", "level": 2, "prepared": true, "notes": "Life domain — always prepared" }
+      ]
+    }
+  },
+  "state": {
+    "inventory": [
+      { "name": "Chain Mail", "props": {} },
+      { "name": "Shield", "props": {} },
+      { "name": "Mace", "props": {} },
+      { "name": "Holy Symbol (Amulet)", "props": {} }
+    ],
+    "stats": { "hp": 24, "max_hp": 24, "ac": 18, "level": 3 },
+    "props": {}
+  }
+}
