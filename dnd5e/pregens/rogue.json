@@ -1,0 +1,38 @@
+{
+  "pregen_id": "rogue",
+  "_status": "DRAFT — needs dnd5e review",
+  "portrait": "pregens/portraits/rogue.png",
+  "sheet": {
+    "name": "Nessa Quick",
+    "race": "Lightfoot Halfling",
+    "className": "Rogue (Thief)",
+    "level": 3,
+    "proficiencyBonus": 2,
+    "abilities": { "str": 8, "dex": 16, "con": 14, "int": 12, "wis": 10, "cha": 13 },
+    "hp": { "current": 24, "max": 24 },
+    "ac": 15,
+    "saveProficiencies": ["dex", "int"],
+    "skillProficiencies": ["acrobatics", "stealth", "sleight_of_hand", "perception", "investigation", "deception"],
+    "equipment": [
+      { "name": "Studded Leather", "qty": 1, "equipped": true, "notes": "AC 12 + Dex" },
+      { "name": "Shortsword", "qty": 1, "equipped": true, "notes": "1d6 piercing, finesse" },
+      { "name": "Shortbow", "qty": 1, "equipped": false, "notes": "1d6 piercing, range 80/320" },
+      { "name": "Arrows", "qty": 20, "equipped": false },
+      { "name": "Dagger", "qty": 2, "equipped": true, "notes": "1d4 piercing, finesse, thrown 20/60" },
+      { "name": "Thieves' Tools", "qty": 1, "equipped": false, "notes": "proficient" },
+      { "name": "Burglar's Pack", "qty": 1, "equipped": false }
+    ],
+    "spells": { "entries": [] }
+  },
+  "state": {
+    "inventory": [
+      { "name": "Studded Leather", "props": {} },
+      { "name": "Shortsword", "props": {} },
+      { "name": "Shortbow", "props": {} },
+      { "name": "Dagger", "props": {} },
+      { "name": "Thieves' Tools", "props": {} }
+    ],
+    "stats": { "hp": 24, "max_hp": 24, "ac": 15, "level": 3 },
+    "props": {}
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "pregen_id": "wizard",
+  "_status": "DRAFT — needs dnd5e review",
+  "portrait": "pregens/portraits/wizard.png",
+  "sheet": {
+    "name": "Aldric Vane",
+    "race": "High Elf",
+    "className": "Wizard (Evocation)",
+    "level": 3,
+    "proficiencyBonus": 2,
+    "abilities": { "str": 8, "dex": 16, "con": 13, "int": 16, "wis": 12, "cha": 10 },
+    "hp": { "current": 17, "max": 17 },
+    "ac": 13,
+    "saveProficiencies": ["int", "wis"],
+    "skillProficiencies": ["arcana", "history", "investigation"],
+    "equipment": [
+      { "name": "Quarterstaff", "qty": 1, "equipped": true, "notes": "1d6 bludgeoning, versatile (1d8)" },
+      { "name": "Dagger", "qty": 1, "equipped": false, "notes": "1d4 piercing, finesse, thrown 20/60" },
+      { "name": "Spellbook", "qty": 1, "equipped": false },
+      { "name": "Component Pouch", "qty": 1, "equipped": true, "notes": "spellcasting focus" },
+      { "name": "Scholar's Pack", "qty": 1, "equipped": false }
+    ],
+    "spells": {
+      "slots": { "1": { "total": 4, "used": 0 }, "2": { "total": 2, "used": 0 } },
+      "entries": [
+        { "name": "Fire Bolt", "level": 0, "prepared": true, "notes": "cantrip" },
+        { "name": "Mage Hand", "level": 0, "prepared": true, "notes": "cantrip" },
+        { "name": "Prestidigitation", "level": 0, "prepared": true, "notes": "cantrip" },
+        { "name": "Light", "level": 0, "prepared": true, "notes": "cantrip (High Elf)" },
+        { "name": "Magic Missile", "level": 1, "prepared": true },
+        { "name": "Shield", "level": 1, "prepared": true },
+        { "name": "Mage Armor", "level": 1, "prepared": true },
+        { "name": "Burning Hands", "level": 1, "prepared": false },
+        { "name": "Detect Magic", "level": 1, "prepared": false },
+        { "name": "Misty Step", "level": 2, "prepared": true },
+        { "name": "Scorching Ray", "level": 2, "prepared": true }
+      ]
+    }
+  },
+  "state": {
+    "inventory": [
+      { "name": "Quarterstaff", "props": {} },
+      { "name": "Dagger", "props": {} },
+      { "name": "Spellbook", "props": {} },
+      { "name": "Component Pouch", "props": {} }
+    ],
+    "stats": { "hp": 17, "max_hp": 17, "ac": 13, "level": 3 },
+    "props": {}
+  }
+}
