@@ -26,11 +26,13 @@
   },
   "state": {
     "inventory": [
-      { "name": "Studded Leather", "props": {} },
-      { "name": "Shortsword", "props": {} },
-      { "name": "Shortbow", "props": {} },
-      { "name": "Dagger", "props": {} },
-      { "name": "Thieves' Tools", "props": {} }
+      { "name": "Studded Leather", "props": { "slot": "worn", "equipped": true, "notes": "AC 12 + Dex" } },
+      { "name": "Shortsword", "props": { "slot": "carried", "equipped": true, "damage": "1d6", "notes": "1d6 piercing, finesse" } },
+      { "name": "Shortbow", "props": { "slot": "carried", "damage": "1d6", "notes": "1d6 piercing, range 80/320" } },
+      { "name": "Arrows", "props": { "slot": "carried", "qty": 20 } },
+      { "name": "Dagger", "props": { "slot": "carried", "qty": 2, "equipped": true, "damage": "1d4", "notes": "1d4 piercing, finesse, thrown 20/60" } },
+      { "name": "Thieves' Tools", "props": { "slot": "carried", "notes": "proficient" } },
+      { "name": "Burglar's Pack", "props": { "slot": "carried" } }
     ],
     "stats": { "hp": 24, "max_hp": 24, "ac": 15, "level": 3 },
     "props": {}

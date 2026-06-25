@@ -27,12 +27,24 @@ Each file is the pregen wrapper defined in `wiki/operationalize/20-character-sto
 - **`sheet`** validates against Shuttle's `CharacterRecord` interface (abilities, saves, skills,
   equipment, spells). `skillProficiencies` use the `SKILLS` keys from `characterData.ts` (e.g.
   `sleight_of_hand`).
-- **`state.stats`** carries only the **engine portable props** (`hp, max_hp, ac, level`) the dnd5e
-  layer reads on `spawn_actor`. Nothing else in `state` survives spawn/despawn — the engine's
-  portable-prop list is exactly those four.
-- **`state.inventory`** items are `{name, props}`; weapon *mechanics* (damage dice) belong to the
-  dnd5e kinds, not to `state` (carried-item portable props are also only `hp/max_hp/ac/level`). The
-  sheet's `equipment` carries the human-readable detail.
+- **`state.stats`** carries only the **engine portable actor props** (`hp, max_hp, ac, level`) the
+  dnd5e layer reads on `spawn_actor`. Actor props stay on this narrow allowlist across
+  spawn/despawn.
+- **`state.inventory`** items are `{name, props}`. As of **wyrd #123**, *item* props are no longer
+  allowlisted — every scalar prop on an item survives spawn/despawn and rides the engine's
+  `INVENTORY` signal. So `state.inventory` is now the authoritative starting kit the engine spawns
+  as real item entities, and we author the engine/display props here:
+  - `slot` — `"carried"` or `"worn"`. Worn items (armour, shields) are placed on the engine's
+    `worn` edge at spawn (equipped); everything else is carried. **Required on every item.**
+  - `damage` — a dice expression (e.g. `"1d8"`) for weapons. The dnd5e layer's `weapon_of()` reads
+    this off the carried item, so a spawned weapon is actually usable in combat (it picks the first
+    carried item with a `damage` prop — order the primary weapon first).
+  - `qty`, `equipped`, `notes` — display detail mirrored from the sheet's `equipment` row.
+
+  `state.inventory` should mirror the full `sheet.equipment` list so the engine carries everything
+  the sheet shows (the live Equipment tab and the `inventory` verb both read engine truth). The
+  sheet's `equipment` remains the human-readable presentation copy. Validated by
+  `tests/validate_pregens.sh`.
 
 ## Ability arrays — corrected 2026-06-17 (all four now standard-array-legal)
 

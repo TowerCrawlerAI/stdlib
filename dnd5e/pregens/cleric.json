@@ -40,10 +40,13 @@
   },
   "state": {
     "inventory": [
-      { "name": "Chain Mail", "props": {} },
-      { "name": "Shield", "props": {} },
-      { "name": "Mace", "props": {} },
-      { "name": "Holy Symbol (Amulet)", "props": {} }
+      { "name": "Chain Mail", "props": { "slot": "worn", "equipped": true, "notes": "AC 16, heavy (Life Domain prof)" } },
+      { "name": "Shield", "props": { "slot": "worn", "equipped": true, "notes": "+2 AC" } },
+      { "name": "Mace", "props": { "slot": "carried", "equipped": true, "damage": "1d6", "notes": "1d6 bludgeoning" } },
+      { "name": "Holy Symbol (Amulet)", "props": { "slot": "carried", "equipped": true, "notes": "spellcasting focus" } },
+      { "name": "Light Crossbow", "props": { "slot": "carried", "damage": "1d8", "notes": "1d8 piercing, range 80/320" } },
+      { "name": "Crossbow Bolts", "props": { "slot": "carried", "qty": 20 } },
+      { "name": "Priest's Pack", "props": { "slot": "carried" } }
     ],
     "stats": { "hp": 24, "max_hp": 24, "ac": 18, "level": 3 },
     "props": {}

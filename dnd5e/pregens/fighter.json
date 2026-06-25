@@ -26,11 +26,13 @@
   },
   "state": {
     "inventory": [
-      { "name": "Chain Mail", "props": {} },
-      { "name": "Shield", "props": {} },
-      { "name": "Warhammer", "props": {} },
-      { "name": "Handaxe", "props": {} },
-      { "name": "Light Crossbow", "props": {} }
+      { "name": "Chain Mail", "props": { "slot": "worn", "equipped": true, "notes": "AC 16, heavy" } },
+      { "name": "Shield", "props": { "slot": "worn", "equipped": true, "notes": "+2 AC" } },
+      { "name": "Warhammer", "props": { "slot": "carried", "equipped": true, "damage": "1d8", "notes": "1d8 bludgeoning, versatile (1d10)" } },
+      { "name": "Handaxe", "props": { "slot": "carried", "qty": 2, "damage": "1d6", "notes": "1d6 slashing, thrown 20/60" } },
+      { "name": "Light Crossbow", "props": { "slot": "carried", "damage": "1d8", "notes": "1d8 piercing, range 80/320" } },
+      { "name": "Crossbow Bolts", "props": { "slot": "carried", "qty": 20 } },
+      { "name": "Explorer's Pack", "props": { "slot": "carried" } }
     ],
     "stats": { "hp": 31, "max_hp": 31, "ac": 18, "level": 3 },
     "props": {}
