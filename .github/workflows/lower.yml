@@ -34,3 +34,13 @@ jobs:
           name: stdlib-lua
           path: build/stdlib.lua
           if-no-files-found: error
+
+  validate-pregens:
+    name: Validate dnd5e pregens
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate pregen JSON + inventory schema
+        run: bash tests/validate_pregens.sh
